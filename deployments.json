@@ -1,0 +1,10 @@
+{
+  "testnet": {
+    "token": "",
+    "access-control": "",
+    "upgradeable": "",
+    "multisig": "",
+    "event-rich": ""
+  },
+  "mainnet": {}
+}

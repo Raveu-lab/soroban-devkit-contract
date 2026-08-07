@@ -1,0 +1,40 @@
+name: New Contract Proposal
+description: Propose a new reference contract to add to the repo
+labels: ["enhancement", "new-contract"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Contract name
+      placeholder: "escrow"
+    validations:
+      required: true
+
+  - type: textarea
+    id: purpose
+    attributes:
+      label: What does this contract do?
+      placeholder: A time-locked escrow that releases funds after a condition is met.
+    validations:
+      required: true
+
+  - type: textarea
+    id: functions
+    attributes:
+      label: Key functions
+      placeholder: |
+        - initialize(depositor, beneficiary, unlock_ledger)
+        - deposit(amount)
+        - release()
+        - refund()
+    validations:
+      required: true
+
+  - type: textarea
+    id: events
+    attributes:
+      label: Events emitted
+      placeholder: |
+        - deposited(amount)
+        - released(to, amount)
+        - refunded(to, amount)

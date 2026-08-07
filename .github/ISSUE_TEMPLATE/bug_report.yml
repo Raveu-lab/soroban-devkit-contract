@@ -1,0 +1,41 @@
+name: Bug Report
+description: Report a bug in a contract
+labels: ["bug", "triage"]
+body:
+  - type: dropdown
+    id: contract
+    attributes:
+      label: Which contract?
+      options:
+        - token
+        - access-control
+        - upgradeable
+        - multisig
+        - event-rich
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Call initialize(...)
+        2. Call transfer(...)
+        3. See panic / wrong state
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
