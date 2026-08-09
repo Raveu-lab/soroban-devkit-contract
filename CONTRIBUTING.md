@@ -13,8 +13,8 @@ This is the **best entry point for new contributors** — writing or extending a
 ## Setup
 
 ```bash
-git clone https://github.com/soroban-devkit/soroban-devkit-contracts
-cd soroban-devkit-contracts
+git clone https://github.com/Raveu-lab/soroban-devkit-contract
+cd soroban-devkit-contract
 
 # Build all contracts
 cargo build --target wasm32-unknown-unknown --release
@@ -31,7 +31,7 @@ cargo clippy --all-targets -- -D warnings
 
 ## Picking Up an Issue
 
-1. Browse [open issues](https://github.com/soroban-devkit/soroban-devkit-contracts/issues)
+1. Browse [open issues](https://github.com/Raveu-lab/soroban-devkit-contract/issues)
 2. Issues tagged `good first issue` are beginner-friendly
 3. Comment to claim before starting work
 
