@@ -60,7 +60,7 @@ This ensures all contracts stay on the same SDK version and simplifies upgrades.
 
 ## Contract Architecture Pattern
 
-Every contract in this repo follows the same internal layout:
+Every contract in this repo follows the same internal layout. Not all files are required — only create the ones that apply:
 
 ```
 contracts/<name>/
@@ -69,9 +69,9 @@ contracts/<name>/
 │   ├── storage.rs      # Ledger key definitions, read/write helpers, TTL bumps
 │   ├── events.rs       # Typed event structs + emit() helpers
 │   ├── errors.rs       # ContractError enum
-│   └── types.rs        # Shared data types (structs used in storage and args)
+│   └── types.rs        # Shared data types (optional — only when needed)
 ├── Cargo.toml
-└── README.md           # Contract-specific usage notes
+└── README.md           # Contract-specific usage notes (optional)
 ```
 
 **Rule:** `lib.rs` contains only the public contract interface. All storage access goes through `storage.rs`. All event emission goes through `events.rs`. This makes each concern independently testable and readable.
@@ -217,21 +217,9 @@ cargo test
 
 ## Deployments
 
-Testnet deployments are tracked in `deployments.json`. When a contract is redeployed (e.g. after an upgrade), the file is updated and committed.
+Testnet deployments are tracked in `deployments.json`. When a contract is deployed or redeployed, the file is updated and committed. Until contracts are deployed, the file contains empty strings as placeholders.
 
-```json
-{
-  "testnet": {
-    "token":          "C...",
-    "access-control": "C...",
-    "upgradeable":    "C...",
-    "multisig":       "C...",
-    "event-rich":     "C..."
-  }
-}
-```
-
-The `soroban-devkit-core` integration tests read this file to know which contract IDs to test against.
+The `soroban-devkit-core` integration tests read this file to resolve contract IDs at test time.
 
 ---
 
@@ -241,5 +229,4 @@ The `soroban-devkit-core` integration tests read this file to know which contrac
 2. Add the crate to the workspace `members` list in the root `Cargo.toml`
 3. Implement the contract following the module pattern (`lib.rs`, `storage.rs`, `events.rs`, `errors.rs`)
 4. Write unit and scenario tests
-5. Deploy to testnet and add the contract ID to `deployments.json`
-6. Update this document and the root `README.md`
+5. Update this document and the root `README.md`
