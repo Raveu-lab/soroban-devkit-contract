@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Stellar Wave Program](https://img.shields.io/badge/Stellar-Wave%20Program-blueviolet)](https://stellar.org)
-[![CI](https://github.com/soroban-devkit/soroban-devkit-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/soroban-devkit/soroban-devkit-contracts/actions)
+[![CI](https://github.com/Raveu-lab/soroban-devkit-contract/actions/workflows/ci.yml/badge.svg)](https://github.com/Raveu-lab/soroban-devkit-contract/actions)
 
 ---
 
@@ -44,8 +44,8 @@ This repo answers those questions with complete, readable, real-world contracts 
 Clone and build all contracts:
 
 ```bash
-git clone https://github.com/soroban-devkit/soroban-devkit-contracts
-cd soroban-devkit-contracts
+git clone https://github.com/Raveu-lab/soroban-devkit-contract
+cd soroban-devkit-contract
 cargo build --target wasm32-unknown-unknown --release
 ```
 
@@ -66,14 +66,15 @@ A full SEP-41 compliant fungible token contract. Implements `transfer`, `approve
 ```
 contracts/token/
 ├── src/
-│   ├── lib.rs        # Contract entry point
+│   ├── lib.rs        # Contract entry point and public interface
 │   ├── storage.rs    # Ledger key definitions and TTL management
 │   ├── events.rs     # Typed event emission helpers
-│   └── admin.rs      # Admin and minting authority logic
+│   ├── errors.rs     # ContractError enum
+│   └── types.rs      # Shared data types
 └── Cargo.toml
 ```
 
-**Testnet contract ID:** `CTOKEN...` *(deployed, see [deployments.json](deployments.json))*
+**Testnet contract ID:** see [deployments.json](deployments.json) — will be updated after first testnet deployment.
 
 ---
 
@@ -85,7 +86,9 @@ A role-based access control contract that can be used as a dependency by other c
 contracts/access-control/
 ├── src/
 │   ├── lib.rs
-│   └── roles.rs
+│   ├── storage.rs
+│   ├── events.rs
+│   └── errors.rs
 └── Cargo.toml
 ```
 
@@ -99,6 +102,9 @@ Demonstrates the correct pattern for deploying an upgradeable Soroban contract u
 contracts/upgradeable/
 ├── src/
 │   ├── lib.rs
+│   ├── storage.rs
+│   ├── events.rs
+│   ├── errors.rs
 │   └── migration.rs
 └── Cargo.toml
 ```
@@ -113,7 +119,10 @@ A multi-signature contract that holds funds and requires M-of-N signers to appro
 contracts/multisig/
 ├── src/
 │   ├── lib.rs
-│   └── signers.rs
+│   ├── storage.rs
+│   ├── events.rs
+│   ├── errors.rs
+│   └── types.rs
 └── Cargo.toml
 ```
 
@@ -134,19 +143,21 @@ contracts/event-rich/
 
 ## Deployments
 
-All reference contracts are deployed to testnet. Contract IDs are tracked in [`deployments.json`](deployments.json):
+All reference contracts will be deployed to testnet after the initial scaffold is complete. Contract IDs are tracked in [`deployments.json`](deployments.json) and updated after each deployment.
 
 ```json
 {
   "testnet": {
-    "token": "CTOKEN...",
-    "access-control": "CACCESS...",
-    "upgradeable": "CUPGRADE...",
-    "multisig": "CMULTISIG...",
-    "event-rich": "CEVENT..."
+    "token": "",
+    "access-control": "",
+    "upgradeable": "",
+    "multisig": "",
+    "event-rich": ""
   }
 }
 ```
+
+> Deploying contracts to testnet and updating `deployments.json` is a great first contribution — see the open issues.
 
 ---
 
@@ -176,7 +187,7 @@ This is the **best entry point for new contributors** — writing a Rust contrac
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up an issue.
 
-**Good first issues** are tagged [`good first issue`](https://github.com/soroban-devkit/soroban-devkit-contracts/issues?q=label%3A%22good+first+issue%22) on GitHub.
+**Good first issues** are tagged [`good first issue`](https://github.com/Raveu-lab/soroban-devkit-contract/issues?q=label%3A%22good+first+issue%22) on GitHub.
 
 ---
 
