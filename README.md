@@ -74,8 +74,6 @@ contracts/token/
 └── Cargo.toml
 ```
 
-**Testnet contract ID:** see [deployments.json](deployments.json) — will be updated after first testnet deployment.
-
 ---
 
 ### `access-control`
@@ -141,25 +139,7 @@ contracts/event-rich/
 
 ---
 
-## Deployments
 
-All reference contracts will be deployed to testnet after the initial scaffold is complete. Contract IDs are tracked in [`deployments.json`](deployments.json) and updated after each deployment.
-
-```json
-{
-  "testnet": {
-    "token": "",
-    "access-control": "",
-    "upgradeable": "",
-    "multisig": "",
-    "event-rich": ""
-  }
-}
-```
-
-> Deploying contracts to testnet and updating `deployments.json` is a great first contribution — see the open issues.
-
----
 
 ## Project Structure
 
