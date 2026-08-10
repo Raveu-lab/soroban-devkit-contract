@@ -41,6 +41,7 @@ impl TokenContract {
     }
 
     /// Mint tokens to an address. Admin only.
+    /// Emits a `mint` event on success.
     pub fn mint(env: Env, to: Address, amount: i128) {
         let admin = storage::get_admin(&env);
         admin.require_auth();
