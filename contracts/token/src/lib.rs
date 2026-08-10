@@ -2,6 +2,13 @@
 //!
 //! Implements: transfer, approve, transfer_from, mint, burn, clawback.
 //! Emits a typed event on every state-changing operation.
+//!
+//! # Architecture
+//! - `lib.rs`     — public contract interface only
+//! - `storage.rs` — all ledger reads and writes
+//! - `events.rs`  — all event emission
+//! - `errors.rs`  — error enum
+//! - `types.rs`   — shared data types
 
 #![no_std]
 
