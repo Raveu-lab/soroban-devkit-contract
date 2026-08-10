@@ -217,9 +217,19 @@ cargo test
 
 ## Deployments
 
-Testnet deployments are tracked in `deployments.json`. When a contract is deployed or redeployed, the file is updated and committed. Until contracts are deployed, the file contains empty strings as placeholders.
+Testnet deployments are tracked in `deployments.json`. When a contract is deployed or redeployed, the file is updated and committed.
 
-The `soroban-devkit-core` integration tests read this file to resolve contract IDs at test time.
+All 5 contracts are live on testnet:
+
+| Contract | Testnet ID |
+|----------|-----------|
+| `token` | `CCNGTMOQNIF5VFJCHCF6S2CGW473IN76RPAX72YOTGDXC6VDZ4XINN45` |
+| `access-control` | `CBFYOBMQF4Z625UVAG4C53KNJ7JVXNFRNBKMRQUCSY2YMORE5FI65QU6` |
+| `upgradeable` | `CB2VSNSMBEOYZN2GJRZYTW6PYQAEMNFPCFJKW3YMQEDZKGXOLLKH3QQP` |
+| `multisig` | `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` |
+| `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` |
+
+The `soroban-devkit-core` integration tests read `deployments.json` to resolve contract IDs at test time.
 
 ---
 
