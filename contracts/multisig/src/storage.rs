@@ -1,3 +1,8 @@
+//! Ledger storage helpers for the multisig contract.
+//!
+//! All reads and writes to contract storage go through this module.
+//! Never call `env.storage()` directly in `lib.rs`.
+
 use soroban_sdk::{Address, Env, Symbol, Vec};
 use crate::types::Proposal;
 
