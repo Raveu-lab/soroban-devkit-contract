@@ -69,7 +69,8 @@ impl TokenContract {
         events::emit_transfer(&env, &from, &to, amount);
     }
 
-    /// Approve a spender to transfer up to `amount` on behalf of the caller.
+    /// Approve a spender to transfer up to `amount` tokens on behalf of `from`.
+    /// Requires auth from `from`. Emits an `approve` event on success.
     pub fn approve(env: Env, from: Address, spender: Address, amount: i128, expiry_ledger: u32) {
         from.require_auth();
         storage::set_allowance(&env, &from, &spender, amount, expiry_ledger);
