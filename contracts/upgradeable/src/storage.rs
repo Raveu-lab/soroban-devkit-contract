@@ -1,3 +1,8 @@
+//! Ledger storage helpers for the upgradeable contract.
+//!
+//! All reads and writes to contract storage go through this module.
+//! Never call `env.storage()` directly in `lib.rs`.
+
 use soroban_sdk::{Address, Env, Symbol};
 
 pub fn set_admin(env: &Env, admin: &Address) {
