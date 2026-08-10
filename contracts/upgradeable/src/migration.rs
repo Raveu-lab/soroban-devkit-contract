@@ -1,10 +1,12 @@
+//! State migration logic for the upgradeable contract.
+//!
+//! Add a new match arm for each contract version that requires a state migration.
+//! Migrations must be idempotent — running them twice must produce the same result.
+
 use soroban_sdk::Env;
 
-/// Run state migrations for a given version upgrade.
-/// Returns the new version number.
-///
-/// Add a new match arm for each contract version that requires a migration.
-/// Migrations must be idempotent — running them twice should be safe.
+/// Run state migrations for the given current version.
+/// Returns the new version number after migration.
 pub fn run(env: &Env, current_version: u32) -> u32 {
     let _ = env;
     match current_version {
