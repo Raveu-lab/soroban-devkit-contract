@@ -52,6 +52,8 @@ impl TokenContract {
     }
 
     /// Transfer tokens from the caller to a recipient.
+    /// Requires auth from `from`. Panics if balance is insufficient.
+    /// Emits a `transfer` event on success.
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
         from.require_auth();
 
