@@ -161,7 +161,7 @@ soroban-devkit-contracts/
 
 ## Deployments
 
-All contracts are deployed to **Stellar testnet**. Contract IDs are tracked in [`deployments.json`](deployments.json).
+All contracts are deployed to **Stellar testnet**. Contract IDs are tracked in [`deployments.json`](deployments.json) and [`ADDRESSES.md`](ADDRESSES.md).
 
 | Contract | Testnet ID |
 |----------|-----------|
