@@ -26,7 +26,8 @@ pub struct TokenContract;
 
 #[contractimpl]
 impl TokenContract {
-    /// Initialize the token with metadata and an admin.
+    /// Initialize the token with metadata and an admin address.
+    /// Can only be called once — panics if already initialized.
     pub fn initialize(
         env: Env,
         admin: Address,
