@@ -1,6 +1,6 @@
 # Contributing to soroban-devkit-contracts
 
-This project is part of the **Stellar Wave Program** on [Drips](https://drips.network). Contributors earn rewards for completing issues during active Wave sprints.
+This project is open source and welcomes contributions from the Stellar developer community.
 
 This is the **best entry point for new contributors** — writing or extending a Soroban contract in Rust is one of the most accessible and impactful ways to contribute to the Stellar ecosystem.
 

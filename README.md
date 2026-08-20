@@ -3,7 +3,6 @@
 > Reference and example Soroban smart contracts for the Soroban DevKit ecosystem.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Stellar Wave Program](https://img.shields.io/badge/Stellar-Wave%20Program-blueviolet)](https://stellar.org)
 [![CI](https://github.com/Raveu-lab/soroban-devkit-contract/actions/workflows/ci.yml/badge.svg)](https://github.com/Raveu-lab/soroban-devkit-contract/actions)
 
 ---
@@ -173,8 +172,6 @@ All contracts are deployed to **Stellar testnet**. Contract IDs are tracked in [
 
 ---
 
-This project is part of the **Stellar Wave Program** on [Drips](https://drips.network). Contributors earn rewards for completing issues during active Wave sprints.
-
 This is the **best entry point for new contributors** — writing a Rust contract or adding tests to an existing one is one of the most accessible ways to contribute to the ecosystem.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up an issue.
@@ -198,4 +195,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up
 
 MIT — see [LICENSE](LICENSE).
 
-Built for the Stellar ecosystem. Sponsored by the [Stellar Development Foundation](https://stellar.org) via the Stellar Wave Program.
+Built for the Stellar ecosystem.
