@@ -139,6 +139,26 @@ mod tests {
     }
 
     #[test]
+    fn test_balance_of_uninitialized_address_is_zero() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let stranger = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+        );
+
+        assert_eq!(client.balance(&stranger), 0);
+    }
+
+    #[test]
     fn test_transfer() {
         let env = Env::default();
         env.mock_all_auths();
