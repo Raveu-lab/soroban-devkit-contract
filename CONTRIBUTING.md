@@ -21,7 +21,7 @@ git clone https://github.com/Raveu-lab/soroban-devkit-contract
 cd soroban-devkit-contract
 
 # Build all contracts
-cargo build --target wasm32-unknown-unknown --release
+cargo build --target wasm32v1-none --release
 
 # Run all tests
 cargo test

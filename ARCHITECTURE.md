@@ -177,12 +177,12 @@ A minimal contract with no real business logic. Its sole purpose is to emit even
 Build all contracts to WASM:
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release
+cargo build --target wasm32v1-none --release
 ```
 
 WASM artifacts are output to:
 ```
-target/wasm32-unknown-unknown/release/<contract_name>.wasm
+target/wasm32v1-none/release/<contract_name>.wasm
 ```
 
 ---

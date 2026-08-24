@@ -45,7 +45,7 @@ Clone and build all contracts:
 ```bash
 git clone https://github.com/Raveu-lab/soroban-devkit-contract
 cd soroban-devkit-contract
-cargo build --target wasm32-unknown-unknown --release
+cargo build --target wasm32v1-none --release
 ```
 
 Run all tests:
