@@ -72,6 +72,9 @@ impl TokenContract {
     }
 
     /// Transfer tokens on behalf of `from` using a pre-approved allowance.
+    /// Requires auth from `spender`. Decrements the allowance by `amount`.
+    /// Panics if the allowance or `from`'s balance is insufficient.
+    /// Emits the same `transfer` event as a direct transfer.
     pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
 
@@ -80,15 +83,28 @@ impl TokenContract {
             panic!("insufficient allowance");
         }
 
-        // TODO: Implement full transfer_from with allowance decrement
-        // See: https://github.com/soroban-devkit/soroban-devkit-contracts/issues/3
-        let _ = (allowance, from, to, amount);
-        todo!("transfer_from — tracked in issue #3")
+        let from_balance = storage::get_balance(&env, &from);
+        if from_balance < amount {
+            panic!("insufficient balance");
+        }
+
+        storage::set_allowance_amount(&env, &from, &spender, allowance - amount);
+
+        storage::set_balance(&env, &from, from_balance - amount);
+        let to_balance = storage::get_balance(&env, &to);
+        storage::set_balance(&env, &to, to_balance + amount);
+
+        events::emit_transfer(&env, &from, &to, amount);
     }
 
     /// Return token balance for an address.
     pub fn balance(env: Env, id: Address) -> i128 {
         storage::get_balance(&env, &id)
+    }
+
+    /// Return the remaining allowance `spender` has to transfer on behalf of `from`.
+    pub fn allowance(env: Env, from: Address, spender: Address) -> i128 {
+        storage::get_allowance(&env, &from, &spender)
     }
 
     /// Return the token symbol.
@@ -174,5 +190,108 @@ mod tests {
 
         assert_eq!(client.balance(&alice), 600_000);
         assert_eq!(client.balance(&bob), 400_000);
+    }
+
+    #[test]
+    fn test_transfer_from_moves_balance() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let alice = Address::generate(&env);
+        let spender = Address::generate(&env);
+        let bob = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+        );
+        client.mint(&alice, &1_000_000);
+        client.approve(&alice, &spender, &500_000, &1000);
+
+        client.transfer_from(&spender, &alice, &bob, &200_000);
+
+        assert_eq!(client.balance(&alice), 800_000);
+        assert_eq!(client.balance(&bob), 200_000);
+    }
+
+    #[test]
+    fn test_transfer_from_reduces_allowance() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let alice = Address::generate(&env);
+        let spender = Address::generate(&env);
+        let bob = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+        );
+        client.mint(&alice, &1_000_000);
+        client.approve(&alice, &spender, &500_000, &1000);
+
+        client.transfer_from(&spender, &alice, &bob, &200_000);
+
+        assert_eq!(client.allowance(&alice, &spender), 300_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient allowance")]
+    fn test_transfer_from_fails_over_allowance() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let alice = Address::generate(&env);
+        let spender = Address::generate(&env);
+        let bob = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+        );
+        client.mint(&alice, &1_000_000);
+        client.approve(&alice, &spender, &100_000, &1000);
+
+        client.transfer_from(&spender, &alice, &bob, &200_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient balance")]
+    fn test_transfer_from_fails_over_balance() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let alice = Address::generate(&env);
+        let spender = Address::generate(&env);
+        let bob = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+        );
+        client.mint(&alice, &100_000);
+        client.approve(&alice, &spender, &500_000, &1000);
+
+        client.transfer_from(&spender, &alice, &bob, &200_000);
     }
 }

@@ -46,6 +46,13 @@ pub fn set_allowance(env: &Env, from: &Address, spender: &Address, amount: i128,
     env.storage().temporary().extend_ttl(&key, expiry, expiry);
 }
 
+/// Update an existing allowance's remaining amount without touching its TTL.
+/// Used by `transfer_from` to decrement the allowance on spend.
+pub fn set_allowance_amount(env: &Env, from: &Address, spender: &Address, amount: i128) {
+    let key = (from.clone(), spender.clone());
+    env.storage().temporary().set(&key, &amount);
+}
+
 pub fn set_metadata(env: &Env, name: String, symbol: String, decimals: u32) {
     env.storage()
         .instance()
