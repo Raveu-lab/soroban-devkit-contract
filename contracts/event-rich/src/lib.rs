@@ -15,18 +15,26 @@ pub struct EventRichContract;
 impl EventRichContract {
     /// Emit events using primitive types: u32, i32, u64, i64, bool
     pub fn emit_primitive_types(env: Env) {
-        env.events().publish((Symbol::new(&env, "u32_event"),), 42u32);
-        env.events().publish((Symbol::new(&env, "i32_event"),), -42i32);
-        env.events().publish((Symbol::new(&env, "u64_event"),), 1_000_000u64);
-        env.events().publish((Symbol::new(&env, "i64_event"),), -1_000_000i64);
-        env.events().publish((Symbol::new(&env, "bool_true"),), true);
-        env.events().publish((Symbol::new(&env, "bool_false"),), false);
+        env.events()
+            .publish((Symbol::new(&env, "u32_event"),), 42u32);
+        env.events()
+            .publish((Symbol::new(&env, "i32_event"),), -42i32);
+        env.events()
+            .publish((Symbol::new(&env, "u64_event"),), 1_000_000u64);
+        env.events()
+            .publish((Symbol::new(&env, "i64_event"),), -1_000_000i64);
+        env.events()
+            .publish((Symbol::new(&env, "bool_true"),), true);
+        env.events()
+            .publish((Symbol::new(&env, "bool_false"),), false);
     }
 
     /// Emit events using 128-bit integers
     pub fn emit_big_numbers(env: Env) {
-        env.events().publish((Symbol::new(&env, "u128_event"),), u128::MAX);
-        env.events().publish((Symbol::new(&env, "i128_event"),), i128::MIN);
+        env.events()
+            .publish((Symbol::new(&env, "u128_event"),), u128::MAX);
+        env.events()
+            .publish((Symbol::new(&env, "i128_event"),), i128::MIN);
     }
 
     /// Emit events using string types: Symbol, String, Bytes

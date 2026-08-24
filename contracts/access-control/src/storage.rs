@@ -46,8 +46,8 @@ pub fn require_role_admin(env: &Env, caller: &Address, role: &Symbol) {
     if caller == &super_admin {
         return;
     }
-    let admin_role = get_role_admin(env, role)
-        .unwrap_or_else(|| panic!("no admin role set for this role"));
+    let admin_role =
+        get_role_admin(env, role).unwrap_or_else(|| panic!("no admin role set for this role"));
     if !get_role(env, &admin_role, caller) {
         panic!("caller does not have admin role");
     }

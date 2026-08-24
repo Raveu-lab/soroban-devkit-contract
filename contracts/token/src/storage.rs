@@ -9,15 +9,22 @@ const ADMIN_KEY: &str = "Admin";
 const CLAWBACK_KEY: &str = "Clawback";
 
 pub fn set_admin(env: &Env, admin: &Address) {
-    env.storage().instance().set(&Symbol::new(env, ADMIN_KEY), admin);
+    env.storage()
+        .instance()
+        .set(&Symbol::new(env, ADMIN_KEY), admin);
 }
 
 pub fn get_admin(env: &Env) -> Address {
-    env.storage().instance().get(&Symbol::new(env, ADMIN_KEY)).unwrap()
+    env.storage()
+        .instance()
+        .get(&Symbol::new(env, ADMIN_KEY))
+        .unwrap()
 }
 
 pub fn set_clawback_enabled(env: &Env, enabled: bool) {
-    env.storage().instance().set(&Symbol::new(env, CLAWBACK_KEY), &enabled);
+    env.storage()
+        .instance()
+        .set(&Symbol::new(env, CLAWBACK_KEY), &enabled);
 }
 
 pub fn get_balance(env: &Env, addr: &Address) -> i128 {
@@ -40,13 +47,22 @@ pub fn set_allowance(env: &Env, from: &Address, spender: &Address, amount: i128,
 }
 
 pub fn set_metadata(env: &Env, name: String, symbol: String, decimals: u32) {
-    env.storage().instance().set(&Symbol::new(env, "Name"), &name);
-    env.storage().instance().set(&Symbol::new(env, "Symbol"), &symbol);
-    env.storage().instance().set(&Symbol::new(env, "Decimals"), &decimals);
+    env.storage()
+        .instance()
+        .set(&Symbol::new(env, "Name"), &name);
+    env.storage()
+        .instance()
+        .set(&Symbol::new(env, "Symbol"), &symbol);
+    env.storage()
+        .instance()
+        .set(&Symbol::new(env, "Decimals"), &decimals);
 }
 
 pub fn get_name(env: &Env) -> String {
-    env.storage().instance().get(&Symbol::new(env, "Name")).unwrap()
+    env.storage()
+        .instance()
+        .get(&Symbol::new(env, "Name"))
+        .unwrap()
 }
 
 pub fn get_symbol(env: &Env) -> Symbol {
@@ -54,5 +70,8 @@ pub fn get_symbol(env: &Env) -> Symbol {
 }
 
 pub fn get_decimals(env: &Env) -> u32 {
-    env.storage().instance().get(&Symbol::new(env, "Decimals")).unwrap_or(7)
+    env.storage()
+        .instance()
+        .get(&Symbol::new(env, "Decimals"))
+        .unwrap_or(7)
 }

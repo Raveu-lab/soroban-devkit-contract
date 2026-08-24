@@ -28,13 +28,7 @@ pub struct TokenContract;
 impl TokenContract {
     /// Initialize the token with metadata and an admin address.
     /// Can only be called once — panics if already initialized.
-    pub fn initialize(
-        env: Env,
-        admin: Address,
-        name: String,
-        symbol: String,
-        decimals: u32,
-    ) {
+    pub fn initialize(env: Env, admin: Address, name: String, symbol: String, decimals: u32) {
         storage::set_admin(&env, &admin);
         storage::set_metadata(&env, name, symbol, decimals);
         storage::set_clawback_enabled(&env, false);
