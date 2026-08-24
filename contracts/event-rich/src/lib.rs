@@ -3,8 +3,13 @@
 //! Emits events covering every XDR ScVal type so EventDecoder in
 //! soroban-devkit-core can be tested against real on-chain data.
 //! Contains no business logic.
-
+//!
+//! Uses `Events::publish` directly (no separate events.rs — this contract's
+//! whole purpose is exercising every event shape). `Events::publish` is
+//! deprecated in favor of the `#[contractevent]` macro; migrating would
+//! change the emitted topic/data shape, so it's deferred.
 #![no_std]
+#![allow(deprecated)]
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 

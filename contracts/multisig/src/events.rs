@@ -2,6 +2,10 @@
 //!
 //! All event emission goes through this module.
 //! Never call `env.events().publish()` directly in `lib.rs`.
+//!
+//! `Events::publish` is deprecated in favor of the `#[contractevent]` macro;
+//! migrating would change the emitted topic/data shape, so it's deferred.
+#![allow(deprecated)]
 
 use soroban_sdk::{Address, Env, Symbol};
 

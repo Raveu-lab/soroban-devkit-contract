@@ -2,6 +2,10 @@
 //!
 //! All event emission goes through this module.
 //! Never call `env.events().publish()` directly in `lib.rs`.
+//!
+//! `Events::publish` is deprecated in favor of the `#[contractevent]` macro;
+//! migrating would change the emitted topic/data shape, so it's deferred.
+#![allow(deprecated)]
 
 use soroban_sdk::{Address, Env, Symbol};
 
@@ -24,6 +28,8 @@ pub fn emit_approve(env: &Env, from: &Address, spender: &Address, amount: i128, 
 }
 
 /// Emit a burn event: topics = (burn, from), data = amount
+/// Reserved for the not-yet-implemented `burn` contract method.
+#[allow(dead_code)]
 pub fn emit_burn(env: &Env, from: &Address, amount: i128) {
     let topics = (Symbol::new(env, "burn"), from.clone());
     env.events().publish(topics, amount);
