@@ -60,7 +60,7 @@ cargo test
 
 ### `token`
 
-A full SEP-41 compliant fungible token contract. Implements `transfer`, `approve`, `transfer_from`, `mint`, `burn`, and `clawback`. Emits structured events on every state change.
+A SEP-41 fungible token contract. Implements the state-changing `transfer`, `approve`, `transfer_from`, and `mint` (each emitting a structured event), plus the read-only `balance` and `allowance` views. `burn` and `clawback` are on the roadmap — the `clawback_enabled` storage flag is scaffolded, but neither function is callable yet.
 
 ```
 contracts/token/
@@ -182,6 +182,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up
 
 ## Roadmap
 
+- [ ] `token`: `burn` and `clawback` functions (storage flag for clawback already scaffolded)
 - [ ] `escrow` contract — time-locked escrow with dispute resolution
 - [ ] `vesting` contract — linear token vesting with cliff
 - [ ] `oracle` contract — a simple price feed interface

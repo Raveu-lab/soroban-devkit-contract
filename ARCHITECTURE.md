@@ -88,7 +88,7 @@ A complete SEP-41 compliant fungible token.
 - Admin authority stored in a persistent ledger entry (not hardcoded)
 - All state-changing functions emit a corresponding event
 - Allowances use a composite key `(owner, spender)` with TTL management
-- `clawback` is gated behind a separate `clawback_enabled` flag set at initialization
+- `burn` and `clawback` are not yet implemented (see the README roadmap); the `clawback_enabled` storage flag is set at initialization in anticipation of `clawback`, but nothing reads it yet
 
 **Storage keys:**
 ```
