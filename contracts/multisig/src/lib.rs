@@ -10,10 +10,13 @@ use soroban_sdk::{contract, contractimpl, Address, Env, Vec};
 mod errors;
 mod events;
 mod storage;
+mod token_client;
 mod types;
 
 pub use errors::MultisigError;
 pub use types::Proposal;
+
+use token_client::TokenClient;
 
 #[contract]
 pub struct MultisigContract;
@@ -84,8 +87,13 @@ impl MultisigContract {
         proposal.executed = true;
         storage::set_proposal(&env, proposal_id, &proposal);
 
-        // TODO: invoke token contract to execute the transfer
-        // See: https://github.com/soroban-devkit/soroban-devkit-contracts/issues/10
+        let token = TokenClient::new(&env, &proposal.token);
+        token.transfer(
+            &env.current_contract_address(),
+            &proposal.to,
+            &proposal.amount,
+        );
+
         events::emit_executed(&env, proposal_id, &executor);
     }
 
@@ -123,6 +131,71 @@ mod tests {
         let (_, contract_id) = setup(&env, 3, 2);
         let client = MultisigContractClient::new(&env, &contract_id);
         assert_eq!(client.threshold(), 2);
+    }
+
+    #[test]
+    fn test_execute_transfers_real_token_balance() {
+        use soroban_sdk::String;
+        use soroban_token::{TokenContract, TokenContractClient};
+
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let (signers, contract_id) = setup(&env, 3, 2);
+        let client = MultisigContractClient::new(&env, &contract_id);
+
+        let token_admin = Address::generate(&env);
+        let token_id = env.register(TokenContract, ());
+        let token_client = TokenContractClient::new(&env, &token_id);
+        token_client.initialize(
+            &token_admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+        );
+        token_client.mint(&contract_id, &1_000_000);
+
+        let recipient = Address::generate(&env);
+        let proposal_id = client.propose(&signers.get(0).unwrap(), &recipient, &400_000, &token_id);
+        client.approve(&signers.get(0).unwrap(), &proposal_id);
+        client.approve(&signers.get(1).unwrap(), &proposal_id);
+
+        client.execute(&signers.get(0).unwrap(), &proposal_id);
+
+        assert_eq!(token_client.balance(&recipient), 400_000);
+        assert_eq!(token_client.balance(&contract_id), 600_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "already executed")]
+    fn test_execute_twice_panics() {
+        use soroban_sdk::String;
+        use soroban_token::{TokenContract, TokenContractClient};
+
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let (signers, contract_id) = setup(&env, 3, 2);
+        let client = MultisigContractClient::new(&env, &contract_id);
+
+        let token_admin = Address::generate(&env);
+        let token_id = env.register(TokenContract, ());
+        let token_client = TokenContractClient::new(&env, &token_id);
+        token_client.initialize(
+            &token_admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+        );
+        token_client.mint(&contract_id, &1_000_000);
+
+        let recipient = Address::generate(&env);
+        let proposal_id = client.propose(&signers.get(0).unwrap(), &recipient, &400_000, &token_id);
+        client.approve(&signers.get(0).unwrap(), &proposal_id);
+        client.approve(&signers.get(1).unwrap(), &proposal_id);
+
+        client.execute(&signers.get(0).unwrap(), &proposal_id);
+        client.execute(&signers.get(0).unwrap(), &proposal_id);
     }
 
     #[test]
