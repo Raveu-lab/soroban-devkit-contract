@@ -155,7 +155,11 @@ propose(transfer_args)  → proposal_id
 approve(proposal_id)    ← each signer calls this
   │
 execute(proposal_id)    ← callable once approvals >= threshold
+  │
+  └─ cross-contract call to proposal.token's transfer(contract_address, to, amount)
 ```
+
+**Cross-contract calls:** `token_client.rs` declares a minimal `TokenInterface` trait via `#[contractclient]` rather than depending on `soroban-token`'s crate directly — `execute()` works against any deployed contract exposing the standard `transfer(from, to, amount)` signature, not just this repo's own token contract. The multisig contract authorizes the transfer as itself via `env.current_contract_address()`, so it must hold the token balance it's proposing to send.
 
 ---
 

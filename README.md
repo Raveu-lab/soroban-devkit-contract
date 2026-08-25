@@ -119,7 +119,8 @@ contracts/multisig/
 │   ├── storage.rs
 │   ├── events.rs
 │   ├── errors.rs
-│   └── types.rs
+│   ├── types.rs
+│   └── token_client.rs
 └── Cargo.toml
 ```
 
