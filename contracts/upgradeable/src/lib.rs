@@ -91,6 +91,25 @@ mod tests {
     }
 
     #[test]
+    fn test_migrate_is_idempotent() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(UpgradeableContract, ());
+        let client = UpgradeableContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        client.initialize(&admin);
+
+        client.migrate();
+        let version_after_first = client.version();
+
+        // Running migrate() again must produce the same result — it must
+        // not keep bumping the version on every call.
+        client.migrate();
+        assert_eq!(client.version(), version_after_first);
+    }
+
+    #[test]
     #[should_panic(expected = "already initialized")]
     fn test_double_initialize_panics() {
         let env = Env::default();
