@@ -19,7 +19,10 @@ pub struct AccessControlContract;
 
 #[contractimpl]
 impl AccessControlContract {
-    /// Initialize with a super admin address that holds all roles by default.
+    /// Initialize with a super admin address. The super admin doesn't hold
+    /// every role outright (has_role still returns false until a role is
+    /// explicitly granted) — instead, require_role_admin lets them bypass
+    /// the admin check entirely, so they can grant or revoke any role.
     pub fn initialize(env: Env, super_admin: Address) {
         storage::set_super_admin(&env, &super_admin);
     }
@@ -74,10 +77,79 @@ mod tests {
         let role = Symbol::new(&env, "minter");
 
         client.initialize(&super_admin);
-
-        // Super admin grants minter role to user
-        // TODO: set_role_admin first so grant_role passes admin check
-        // Full scenario tracked in issue #6
         assert!(!client.has_role(&role, &user));
+
+        // The super admin can grant any role directly — require_role_admin
+        // lets them bypass the admin check, no set_role_admin call needed.
+        client.grant_role(&super_admin, &role, &user);
+        assert!(client.has_role(&role, &user));
+    }
+
+    #[test]
+    fn test_revoke_role() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        let role = Symbol::new(&env, "minter");
+
+        client.initialize(&super_admin);
+        client.grant_role(&super_admin, &role, &user);
+        assert!(client.has_role(&role, &user));
+
+        client.revoke_role(&super_admin, &role, &user);
+        assert!(!client.has_role(&role, &user));
+    }
+
+    #[test]
+    fn test_delegated_admin_can_grant_role() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let delegate = Address::generate(&env);
+        let user = Address::generate(&env);
+        let minter_role = Symbol::new(&env, "minter");
+        let minter_admin_role = Symbol::new(&env, "minter_admin");
+
+        client.initialize(&super_admin);
+
+        // Super admin delegates admin rights over "minter" to minter_admin_role,
+        // then grants that admin role to `delegate`.
+        client.set_role_admin(&super_admin, &minter_role, &minter_admin_role);
+        client.grant_role(&super_admin, &minter_admin_role, &delegate);
+
+        // delegate can now grant "minter" without being the super admin.
+        client.grant_role(&delegate, &minter_role, &user);
+        assert!(client.has_role(&minter_role, &user));
+    }
+
+    #[test]
+    #[should_panic(expected = "caller does not have admin role")]
+    fn test_unauthorized_caller_cannot_grant_role() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let stranger = Address::generate(&env);
+        let user = Address::generate(&env);
+        let minter_role = Symbol::new(&env, "minter");
+        let minter_admin_role = Symbol::new(&env, "minter_admin");
+
+        client.initialize(&super_admin);
+        client.set_role_admin(&super_admin, &minter_role, &minter_admin_role);
+
+        // stranger holds no admin role for "minter" and isn't the super admin.
+        client.grant_role(&stranger, &minter_role, &user);
     }
 }
