@@ -72,8 +72,11 @@ pub fn get_name(env: &Env) -> String {
         .unwrap()
 }
 
-pub fn get_symbol(env: &Env) -> Symbol {
-    Symbol::new(env, "DKT") // TODO: read from storage dynamically
+pub fn get_symbol(env: &Env) -> String {
+    env.storage()
+        .instance()
+        .get(&Symbol::new(env, "Symbol"))
+        .unwrap()
 }
 
 pub fn get_decimals(env: &Env) -> u32 {

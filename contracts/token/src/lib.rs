@@ -12,7 +12,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Symbol};
+use soroban_sdk::{contract, contractimpl, Address, Env, String};
 
 mod errors;
 mod events;
@@ -108,7 +108,7 @@ impl TokenContract {
     }
 
     /// Return the token symbol.
-    pub fn symbol(env: Env) -> Symbol {
+    pub fn symbol(env: Env) -> String {
         storage::get_symbol(&env)
     }
 
@@ -146,6 +146,27 @@ mod tests {
         );
         client.mint(&user, &1_000_000);
         assert_eq!(client.balance(&user), 1_000_000);
+    }
+
+    #[test]
+    fn test_name_and_symbol_reflect_initialize_args() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "USD Coin"),
+            &String::from_str(&env, "USDC"),
+            &6,
+        );
+
+        assert_eq!(client.name(), String::from_str(&env, "USD Coin"));
+        assert_eq!(client.symbol(), String::from_str(&env, "USDC"));
+        assert_eq!(client.decimals(), 6);
     }
 
     #[test]
