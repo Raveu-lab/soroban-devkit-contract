@@ -139,6 +139,24 @@ contracts/event-rich/
 
 ---
 
+### `escrow`
+
+A time-locked escrow contract with dispute resolution. A depositor locks tokens for a recipient and names an arbiter. The depositor can release early at any time; once `release_time` passes, anyone can trigger the release. Either party can raise a dispute before then, after which only the arbiter may release or refund.
+
+```
+contracts/escrow/
+├── src/
+│   ├── lib.rs
+│   ├── storage.rs
+│   ├── events.rs
+│   ├── errors.rs
+│   ├── types.rs
+│   └── token_client.rs
+└── Cargo.toml
+```
+
+---
+
 
 
 ## Project Structure
@@ -150,7 +168,8 @@ soroban-devkit-contracts/
 │   ├── access-control/
 │   ├── upgradeable/
 │   ├── multisig/
-│   └── event-rich/
+│   ├── event-rich/
+│   └── escrow/
 ├── deployments.json
 ├── Cargo.toml          # Workspace manifest
 ├── CONTRIBUTING.md
@@ -170,6 +189,7 @@ All contracts are deployed to **Stellar testnet**. Contract IDs are tracked in [
 | `upgradeable` | `CB2VSNSMBEOYZN2GJRZYTW6PYQAEMNFPCFJKW3YMQEDZKGXOLLKH3QQP` |
 | `multisig` | `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` |
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` |
+| `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` |
 
 ---
 
@@ -184,7 +204,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up
 ## Roadmap
 
 - [ ] `token`: `burn` and `clawback` functions (storage flag for clawback already scaffolded)
-- [ ] `escrow` contract — time-locked escrow with dispute resolution
 - [ ] `vesting` contract — linear token vesting with cliff
 - [ ] `oracle` contract — a simple price feed interface
 - [ ] `dao-voting` contract — on-chain proposal and voting

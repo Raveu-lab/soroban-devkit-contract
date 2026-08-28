@@ -19,7 +19,8 @@ soroban-devkit-contracts/
 │   ├── access-control/         # Role-based access control
 │   ├── upgradeable/            # WASM-upgradeable contract pattern
 │   ├── multisig/               # M-of-N multi-signature wallet
-│   └── event-rich/             # Event emission test fixture
+│   ├── event-rich/             # Event emission test fixture
+│   └── escrow/                 # Time-locked escrow with dispute resolution
 ├── deployments.json            # Testnet contract IDs
 ├── Cargo.toml                  # Workspace manifest
 ├── ARCHITECTURE.md
@@ -40,6 +41,7 @@ members = [
   "contracts/upgradeable",
   "contracts/multisig",
   "contracts/event-rich",
+  "contracts/escrow",
 ]
 resolver = "2"
 
@@ -176,6 +178,36 @@ A minimal contract with no real business logic. Its sole purpose is to emit even
 
 ---
 
+### `escrow`
+
+A time-locked escrow contract with dispute resolution. One contract instance holds many escrows, each identified by an incrementing ID — the same registry pattern as `multisig`'s proposals.
+
+**State (per escrow):**
+```
+Escrow(id) → { depositor, recipient, arbiter, token, amount, release_time, status }
+EscrowCount → u32
+```
+
+**Lifecycle:**
+```
+deposit(depositor, recipient, arbiter, token, amount, release_time) → escrow_id
+  │  pulls `amount` of `token` from depositor into the contract's own custody
+  │
+  ├─ release(caller, id)   ← depositor: any time. anyone: once release_time has passed.
+  ├─ refund(caller, id)    ← recipient only (voluntary give-back)
+  │
+  └─ dispute(caller, id)   ← depositor or recipient, while Active
+       │
+       └─ release(arbiter, id) / refund(arbiter, id)   ← only the arbiter, once Disputed
+```
+
+**Key design decisions:**
+- Like `multisig`, cross-contract token transfers go through a minimal `#[contractclient]`-declared `TokenInterface` (`token_client.rs`) rather than depending on `soroban-token`'s crate — works against any SEP-41-shaped token, not just this repo's own.
+- Once a dispute is raised, the normal depositor/timelock/recipient rules for `release`/`refund` no longer apply — only the arbiter can resolve it, in either direction.
+- `release` and `refund` are only valid from `Active` (or `Disputed`, for the arbiter path) — both are terminal once `Released` or `Refunded`.
+
+---
+
 ## Build
 
 Build all contracts to WASM:
@@ -223,7 +255,7 @@ cargo test
 
 Testnet deployments are tracked in `deployments.json`. When a contract is deployed or redeployed, the file is updated and committed.
 
-All 5 contracts are live on testnet:
+All 6 contracts are live on testnet:
 
 | Contract | Testnet ID |
 |----------|-----------|
@@ -232,6 +264,7 @@ All 5 contracts are live on testnet:
 | `upgradeable` | `CB2VSNSMBEOYZN2GJRZYTW6PYQAEMNFPCFJKW3YMQEDZKGXOLLKH3QQP` |
 | `multisig` | `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` |
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` |
+| `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` |
 
 The `soroban-devkit-core` integration tests read `deployments.json` to resolve contract IDs at test time.
 
