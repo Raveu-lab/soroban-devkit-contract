@@ -5,6 +5,7 @@ members = [
   "contracts/upgradeable",
   "contracts/multisig",
   "contracts/event-rich",
+  "contracts/escrow",
 ]
 resolver = "2"
 
