@@ -157,6 +157,24 @@ contracts/escrow/
 
 ---
 
+### `vesting`
+
+Linear token vesting with a cliff. A depositor locks tokens for a beneficiary that vest linearly from `start_time` over `vesting_duration` seconds — nothing is claimable until `cliff_duration` passes, at which point whatever has accrued becomes claimable at once. The depositor can revoke at any time before full vesting: the beneficiary keeps whatever has vested, and the unvested remainder is refunded to the depositor.
+
+```
+contracts/vesting/
+├── src/
+│   ├── lib.rs
+│   ├── storage.rs
+│   ├── events.rs
+│   ├── errors.rs
+│   ├── types.rs
+│   └── token_client.rs
+└── Cargo.toml
+```
+
+---
+
 
 
 ## Project Structure
@@ -169,7 +187,8 @@ soroban-devkit-contracts/
 │   ├── upgradeable/
 │   ├── multisig/
 │   ├── event-rich/
-│   └── escrow/
+│   ├── escrow/
+│   └── vesting/
 ├── deployments.json
 ├── Cargo.toml          # Workspace manifest
 ├── CONTRIBUTING.md
@@ -190,6 +209,7 @@ All contracts are deployed to **Stellar testnet**. Contract IDs are tracked in [
 | `multisig` | `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` |
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` |
 | `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` |
+| `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` |
 
 ---
 
@@ -204,7 +224,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up
 ## Roadmap
 
 - [ ] `token`: `burn` and `clawback` functions (storage flag for clawback already scaffolded)
-- [ ] `vesting` contract — linear token vesting with cliff
 - [ ] `oracle` contract — a simple price feed interface
 - [ ] `dao-voting` contract — on-chain proposal and voting
 - [ ] Property-based fuzz tests for all contracts using `cargo-fuzz`

@@ -20,7 +20,8 @@ soroban-devkit-contracts/
 │   ├── upgradeable/            # WASM-upgradeable contract pattern
 │   ├── multisig/               # M-of-N multi-signature wallet
 │   ├── event-rich/             # Event emission test fixture
-│   └── escrow/                 # Time-locked escrow with dispute resolution
+│   ├── escrow/                 # Time-locked escrow with dispute resolution
+│   └── vesting/                # Linear token vesting with a cliff
 ├── deployments.json            # Testnet contract IDs
 ├── Cargo.toml                  # Workspace manifest
 ├── ARCHITECTURE.md
@@ -42,6 +43,7 @@ members = [
   "contracts/multisig",
   "contracts/event-rich",
   "contracts/escrow",
+  "contracts/vesting",
 ]
 resolver = "2"
 
@@ -208,6 +210,48 @@ deposit(depositor, recipient, arbiter, token, amount, release_time) → escrow_i
 
 ---
 
+### `vesting`
+
+Linear token vesting with a cliff. One contract instance holds many schedules, each identified by an incrementing ID — the same registry pattern as `escrow`/`multisig`.
+
+**State (per schedule):**
+```
+VestingSchedule(id) → { depositor, beneficiary, token, total_amount,
+                         claimed_amount, start_time, cliff_duration,
+                         vesting_duration, revoked }
+ScheduleCount → u32
+```
+
+**Vesting curve** (`vested_at`, pure function, no storage access):
+```
+elapsed = now - start_time
+elapsed < cliff_duration        → 0
+elapsed >= vesting_duration     → total_amount
+otherwise                       → total_amount * elapsed / vesting_duration
+```
+Vesting accrues linearly from `start_time` the whole time — the cliff only gates *when* it becomes claimable, not when it starts accruing. Once the cliff passes, whatever has already accrued becomes claimable in one shot.
+
+**Lifecycle:**
+```
+create_vesting(depositor, beneficiary, token, total_amount,
+               start_time, cliff_duration, vesting_duration) → schedule_id
+  │  pulls `total_amount` of `token` from depositor into the contract's own custody
+  │
+  ├─ claim(beneficiary, id)   → pays vested_at(now) - claimed_amount
+  │
+  └─ revoke(depositor, id)    → pays the beneficiary whatever vested by now,
+                                  refunds the unvested remainder to depositor,
+                                  sets claimed_amount = total_amount (blocks
+                                  further claims without a separate check)
+```
+
+**Key design decisions:**
+- Like `escrow`/`multisig`, cross-contract token transfers go through a minimal `#[contractclient]`-declared `TokenInterface` — works against any SEP-41-shaped token.
+- `revoke` settles the schedule in one transaction: it pays out earned-but-unclaimed tokens to the beneficiary (they keep what they've earned) and refunds only the unvested portion to the depositor — total distributed always equals `total_amount`.
+- `#[allow(clippy::too_many_arguments)]` on `create_vesting`: 7 real parameters plus `env` is a genuine business requirement here, not something worth hiding behind an options struct just to satisfy the lint.
+
+---
+
 ## Build
 
 Build all contracts to WASM:
@@ -255,7 +299,7 @@ cargo test
 
 Testnet deployments are tracked in `deployments.json`. When a contract is deployed or redeployed, the file is updated and committed.
 
-All 6 contracts are live on testnet:
+All 7 contracts are live on testnet:
 
 | Contract | Testnet ID |
 |----------|-----------|
@@ -265,6 +309,7 @@ All 6 contracts are live on testnet:
 | `multisig` | `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` |
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` |
 | `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` |
+| `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` |
 
 The `soroban-devkit-core` integration tests read `deployments.json` to resolve contract IDs at test time.
 
