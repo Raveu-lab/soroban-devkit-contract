@@ -8,6 +8,10 @@ use soroban_sdk::{Address, Env, String, Symbol};
 const ADMIN_KEY: &str = "Admin";
 const CLAWBACK_KEY: &str = "Clawback";
 
+pub fn is_initialized(env: &Env) -> bool {
+    env.storage().instance().has(&Symbol::new(env, ADMIN_KEY))
+}
+
 pub fn set_admin(env: &Env, admin: &Address) {
     env.storage()
         .instance()
@@ -25,6 +29,13 @@ pub fn set_clawback_enabled(env: &Env, enabled: bool) {
     env.storage()
         .instance()
         .set(&Symbol::new(env, CLAWBACK_KEY), &enabled);
+}
+
+pub fn get_clawback_enabled(env: &Env) -> bool {
+    env.storage()
+        .instance()
+        .get(&Symbol::new(env, CLAWBACK_KEY))
+        .unwrap_or(false)
 }
 
 pub fn get_balance(env: &Env, addr: &Address) -> i128 {

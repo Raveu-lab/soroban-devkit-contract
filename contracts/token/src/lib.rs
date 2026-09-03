@@ -27,11 +27,23 @@ pub struct TokenContract;
 #[contractimpl]
 impl TokenContract {
     /// Initialize the token with metadata and an admin address.
+    /// `clawback_enabled` is fixed at initialization — like Stellar classic
+    /// assets, it cannot be turned on or off later.
     /// Can only be called once — panics if already initialized.
-    pub fn initialize(env: Env, admin: Address, name: String, symbol: String, decimals: u32) {
+    pub fn initialize(
+        env: Env,
+        admin: Address,
+        name: String,
+        symbol: String,
+        decimals: u32,
+        clawback_enabled: bool,
+    ) {
+        if storage::is_initialized(&env) {
+            panic!("already initialized");
+        }
         storage::set_admin(&env, &admin);
         storage::set_metadata(&env, name, symbol, decimals);
-        storage::set_clawback_enabled(&env, false);
+        storage::set_clawback_enabled(&env, clawback_enabled);
     }
 
     /// Mint tokens to an address. Admin only.
@@ -97,6 +109,41 @@ impl TokenContract {
         events::emit_transfer(&env, &from, &to, amount);
     }
 
+    /// Burn tokens from the caller's own balance. Requires auth from `from`.
+    /// Panics if the balance is insufficient. Emits a `burn` event.
+    pub fn burn(env: Env, from: Address, amount: i128) {
+        from.require_auth();
+
+        let balance = storage::get_balance(&env, &from);
+        if balance < amount {
+            panic!("insufficient balance");
+        }
+
+        storage::set_balance(&env, &from, balance - amount);
+        events::emit_burn(&env, &from, amount);
+    }
+
+    /// Forcibly burn tokens from any address. Admin only, and only if
+    /// `clawback_enabled` was set at initialization — it cannot be turned
+    /// on afterward. Panics if the balance is insufficient. Emits a
+    /// `clawback` event.
+    pub fn clawback(env: Env, from: Address, amount: i128) {
+        let admin = storage::get_admin(&env);
+        admin.require_auth();
+
+        if !storage::get_clawback_enabled(&env) {
+            panic!("clawback not enabled");
+        }
+
+        let balance = storage::get_balance(&env, &from);
+        if balance < amount {
+            panic!("insufficient balance");
+        }
+
+        storage::set_balance(&env, &from, balance - amount);
+        events::emit_clawback(&env, &from, amount);
+    }
+
     /// Return token balance for an address.
     pub fn balance(env: Env, id: Address) -> i128 {
         storage::get_balance(&env, &id)
@@ -143,6 +190,7 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
         client.mint(&user, &1_000_000);
         assert_eq!(client.balance(&user), 1_000_000);
@@ -162,6 +210,7 @@ mod tests {
             &String::from_str(&env, "USD Coin"),
             &String::from_str(&env, "USDC"),
             &6,
+            &false,
         );
 
         assert_eq!(client.name(), String::from_str(&env, "USD Coin"));
@@ -184,6 +233,7 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
 
         assert_eq!(client.balance(&stranger), 0);
@@ -205,6 +255,7 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
         client.mint(&alice, &1_000_000);
         client.transfer(&alice, &bob, &400_000);
@@ -230,6 +281,7 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
         client.mint(&alice, &1_000_000);
         client.approve(&alice, &spender, &500_000, &1000);
@@ -257,6 +309,7 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
         client.mint(&alice, &1_000_000);
         client.approve(&alice, &spender, &500_000, &1000);
@@ -284,6 +337,7 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
         client.mint(&alice, &1_000_000);
         client.approve(&alice, &spender, &100_000, &1000);
@@ -309,10 +363,148 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
         client.mint(&alice, &100_000);
         client.approve(&alice, &spender, &500_000, &1000);
 
         client.transfer_from(&spender, &alice, &bob, &200_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "already initialized")]
+    fn test_double_initialize_panics() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+    }
+
+    #[test]
+    fn test_burn_reduces_balance() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&user, &1_000_000);
+
+        client.burn(&user, &300_000);
+
+        assert_eq!(client.balance(&user), 700_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient balance")]
+    fn test_burn_fails_over_balance() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&user, &100_000);
+
+        client.burn(&user, &200_000);
+    }
+
+    #[test]
+    fn test_clawback_moves_balance_when_enabled() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &true,
+        );
+        client.mint(&user, &1_000_000);
+
+        client.clawback(&user, &400_000);
+
+        assert_eq!(client.balance(&user), 600_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "clawback not enabled")]
+    fn test_clawback_fails_when_not_enabled() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&user, &1_000_000);
+
+        client.clawback(&user, &400_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient balance")]
+    fn test_clawback_fails_over_balance() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &true,
+        );
+        client.mint(&user, &100_000);
+
+        client.clawback(&user, &200_000);
     }
 }

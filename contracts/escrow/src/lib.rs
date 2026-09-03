@@ -194,6 +194,7 @@ mod tests {
             &String::from_str(env, "DevKit Token"),
             &String::from_str(env, "DKT"),
             &7,
+            &false,
         );
 
         let depositor = Address::generate(env);

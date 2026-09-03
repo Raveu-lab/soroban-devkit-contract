@@ -28,9 +28,13 @@ pub fn emit_approve(env: &Env, from: &Address, spender: &Address, amount: i128, 
 }
 
 /// Emit a burn event: topics = (burn, from), data = amount
-/// Reserved for the not-yet-implemented `burn` contract method.
-#[allow(dead_code)]
 pub fn emit_burn(env: &Env, from: &Address, amount: i128) {
     let topics = (Symbol::new(env, "burn"), from.clone());
+    env.events().publish(topics, amount);
+}
+
+/// Emit a clawback event: topics = (clawback, from), data = amount
+pub fn emit_clawback(env: &Env, from: &Address, amount: i128) {
+    let topics = (Symbol::new(env, "clawback"), from.clone());
     env.events().publish(topics, amount);
 }

@@ -152,6 +152,7 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
         token_client.mint(&contract_id, &1_000_000);
 
@@ -186,6 +187,7 @@ mod tests {
             &String::from_str(&env, "DevKit Token"),
             &String::from_str(&env, "DKT"),
             &7,
+            &false,
         );
         token_client.mint(&contract_id, &1_000_000);
 
