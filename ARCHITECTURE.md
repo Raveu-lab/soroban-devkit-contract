@@ -89,10 +89,11 @@ contracts/<name>/
 A complete SEP-41 compliant fungible token.
 
 **Key design decisions:**
-- Admin authority stored in a persistent ledger entry (not hardcoded)
+- Admin authority stored in instance storage (not hardcoded)
 - All state-changing functions emit a corresponding event
 - Allowances use a composite key `(owner, spender)` with TTL management
-- `burn` and `clawback` are not yet implemented (see the README roadmap); the `clawback_enabled` storage flag is set at initialization in anticipation of `clawback`, but nothing reads it yet
+- `clawback_enabled` is fixed at `initialize()` — like Stellar classic assets, it cannot be toggled afterward. `clawback()` panics if it was never enabled.
+- `burn()` requires auth from the token holder (self-service); `clawback()` requires auth from the admin and works on any address — the two exist for genuinely different purposes despite both reducing a balance without a corresponding recipient.
 
 **Storage keys:**
 ```

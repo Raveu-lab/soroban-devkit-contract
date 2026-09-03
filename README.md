@@ -60,7 +60,7 @@ cargo test
 
 ### `token`
 
-A SEP-41 fungible token contract. Implements the state-changing `transfer`, `approve`, `transfer_from`, and `mint` (each emitting a structured event), plus the read-only `balance` and `allowance` views. `burn` and `clawback` are on the roadmap — the `clawback_enabled` storage flag is scaffolded, but neither function is callable yet.
+A full SEP-41 fungible token contract. Implements the state-changing `transfer`, `approve`, `transfer_from`, `mint`, `burn`, and `clawback` (each emitting a structured event), plus the read-only `balance`, `allowance`, `name`, `symbol`, and `decimals` views. `clawback_enabled` is fixed at `initialize()` — like Stellar classic assets, it can't be turned on or off afterward.
 
 ```
 contracts/token/
@@ -223,7 +223,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up
 
 ## Roadmap
 
-- [ ] `token`: `burn` and `clawback` functions (storage flag for clawback already scaffolded)
 - [ ] `oracle` contract — a simple price feed interface
 - [ ] `dao-voting` contract — on-chain proposal and voting
 - [ ] Property-based fuzz tests for all contracts using `cargo-fuzz`

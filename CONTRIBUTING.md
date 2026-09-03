@@ -64,7 +64,7 @@ fn test_transfer_from_reduces_allowance() {
     let alice = Address::generate(&env);
     let spender = Address::generate(&env);
 
-    client.initialize(&admin, &String::from_str(&env, "Token"), &String::from_str(&env, "TKN"), &7);
+    client.initialize(&admin, &String::from_str(&env, "Token"), &String::from_str(&env, "TKN"), &7, &false);
     client.mint(&alice, &1_000_000);
     client.approve(&alice, &spender, &500_000, &1000);
 
