@@ -1543,6 +1543,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "soroban-oracle"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "soroban-sdk"
 version = "27.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

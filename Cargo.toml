@@ -7,6 +7,7 @@ members = [
   "contracts/event-rich",
   "contracts/escrow",
   "contracts/vesting",
+  "contracts/oracle",
 ]
 resolver = "2"
 
