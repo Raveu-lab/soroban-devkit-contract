@@ -175,6 +175,23 @@ contracts/vesting/
 
 ---
 
+### `oracle`
+
+A simple price feed. The admin publishes a price per asset (identified by a `Symbol`, e.g. `XLM` or `BTC`); anyone can read the latest price and check whether it's older than a caller-supplied max age. The contract doesn't enforce staleness itself — "too old" depends entirely on what the reader is using the price for.
+
+```
+contracts/oracle/
+├── src/
+│   ├── lib.rs
+│   ├── storage.rs
+│   ├── events.rs
+│   ├── errors.rs
+│   └── types.rs
+└── Cargo.toml
+```
+
+---
+
 
 
 ## Project Structure
@@ -188,7 +205,8 @@ soroban-devkit-contracts/
 │   ├── multisig/
 │   ├── event-rich/
 │   ├── escrow/
-│   └── vesting/
+│   ├── vesting/
+│   └── oracle/
 ├── deployments.json
 ├── Cargo.toml          # Workspace manifest
 ├── CONTRIBUTING.md
@@ -210,6 +228,7 @@ All contracts are deployed to **Stellar testnet**. Contract IDs are tracked in [
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` |
 | `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` |
 | `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` |
+| `oracle` | `CDX4U7QYTAGLEOOBUEJPTGONEV5HHXIK4BN7BHLOQAVRDGMWGWOX76SH` |
 
 ---
 
@@ -223,7 +242,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up
 
 ## Roadmap
 
-- [ ] `oracle` contract — a simple price feed interface
 - [ ] `dao-voting` contract — on-chain proposal and voting
 - [ ] Property-based fuzz tests for all contracts using `cargo-fuzz`
 - [ ] Formal verification annotations using Komet

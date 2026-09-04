@@ -21,7 +21,8 @@ soroban-devkit-contracts/
 │   ├── multisig/               # M-of-N multi-signature wallet
 │   ├── event-rich/             # Event emission test fixture
 │   ├── escrow/                 # Time-locked escrow with dispute resolution
-│   └── vesting/                # Linear token vesting with a cliff
+│   ├── vesting/                # Linear token vesting with a cliff
+│   └── oracle/                 # Simple admin-published price feed
 ├── deployments.json            # Testnet contract IDs
 ├── Cargo.toml                  # Workspace manifest
 ├── ARCHITECTURE.md
@@ -44,6 +45,7 @@ members = [
   "contracts/event-rich",
   "contracts/escrow",
   "contracts/vesting",
+  "contracts/oracle",
 ]
 resolver = "2"
 
@@ -253,6 +255,35 @@ create_vesting(depositor, beneficiary, token, total_amount,
 
 ---
 
+### `oracle`
+
+A simple price feed. Unlike `escrow`/`vesting`/`multisig`, this contract doesn't move any tokens — it just stores and serves prices, keyed by asset `Symbol`.
+
+**State:**
+```
+Admin       → Address
+Price(asset) → PriceData { price: i128, timestamp: u64 }
+```
+
+**Flow:**
+```
+set_price(asset, price)   ← admin only (no separate caller param — same
+                              pattern as token's mint(): fetch the stored
+                              admin, require its auth directly)
+  └─ stores { price, timestamp: env.ledger().timestamp() }
+
+get_price(asset)          → panics "no price for asset" if never set
+is_stale(asset, max_age)  → get_price(asset), then
+                              now.saturating_sub(timestamp) > max_age
+```
+
+**Key design decisions:**
+- `is_stale` doesn't gate anything itself — it's a query the caller uses to decide what "too old" means for their own purpose. The contract has no opinion on acceptable staleness.
+- `saturating_sub` in `is_stale` guards against underflow (the release profile has `overflow-checks = true`, so a bare subtraction would panic on underflow) even though `timestamp` should never exceed the current ledger time by construction.
+- `price` is an opaque `i128` — the contract doesn't interpret decimals or units; publishers and readers must agree on that off-chain.
+
+---
+
 ## Build
 
 Build all contracts to WASM:
@@ -300,7 +331,7 @@ cargo test
 
 Testnet deployments are tracked in `deployments.json`. When a contract is deployed or redeployed, the file is updated and committed.
 
-All 7 contracts are live on testnet:
+All 8 contracts are live on testnet:
 
 | Contract | Testnet ID |
 |----------|-----------|
@@ -311,6 +342,7 @@ All 7 contracts are live on testnet:
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` |
 | `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` |
 | `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` |
+| `oracle` | `CDX4U7QYTAGLEOOBUEJPTGONEV5HHXIK4BN7BHLOQAVRDGMWGWOX76SH` |
 
 The `soroban-devkit-core` integration tests read `deployments.json` to resolve contract IDs at test time.
 
