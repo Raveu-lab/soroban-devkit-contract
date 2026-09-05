@@ -192,6 +192,23 @@ contracts/oracle/
 
 ---
 
+### `dao-voting`
+
+On-chain proposal and voting, one-address-one-vote. Anyone can propose; any address can vote once per proposal, for or against, before its deadline. After the deadline, anyone can finalize it — simple majority, with a tie counting as rejected. The contract only records outcomes; it doesn't execute anything itself, so pairing it with `access-control` or `multisig` to actually gate an action on a result is left to the composing contract.
+
+```
+contracts/dao-voting/
+├── src/
+│   ├── lib.rs
+│   ├── storage.rs
+│   ├── events.rs
+│   ├── errors.rs
+│   └── types.rs
+└── Cargo.toml
+```
+
+---
+
 
 
 ## Project Structure
@@ -206,7 +223,8 @@ soroban-devkit-contracts/
 │   ├── event-rich/
 │   ├── escrow/
 │   ├── vesting/
-│   └── oracle/
+│   ├── oracle/
+│   └── dao-voting/
 ├── deployments.json
 ├── Cargo.toml          # Workspace manifest
 ├── CONTRIBUTING.md
@@ -229,6 +247,7 @@ All contracts are deployed to **Stellar testnet**. Contract IDs are tracked in [
 | `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` |
 | `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` |
 | `oracle` | `CDX4U7QYTAGLEOOBUEJPTGONEV5HHXIK4BN7BHLOQAVRDGMWGWOX76SH` |
+| `dao-voting` | `CBZOOLSCJFAHHOKM575MBHXAPBI3IWXLJYZV5L3DNX5P4NAL2JNHNLTE` |
 
 ---
 
@@ -242,7 +261,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up
 
 ## Roadmap
 
-- [ ] `dao-voting` contract — on-chain proposal and voting
 - [ ] Property-based fuzz tests for all contracts using `cargo-fuzz`
 - [ ] Formal verification annotations using Komet
 

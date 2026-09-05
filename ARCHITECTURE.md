@@ -22,7 +22,8 @@ soroban-devkit-contracts/
 │   ├── event-rich/             # Event emission test fixture
 │   ├── escrow/                 # Time-locked escrow with dispute resolution
 │   ├── vesting/                # Linear token vesting with a cliff
-│   └── oracle/                 # Simple admin-published price feed
+│   ├── oracle/                 # Simple admin-published price feed
+│   └── dao-voting/             # On-chain proposal and voting
 ├── deployments.json            # Testnet contract IDs
 ├── Cargo.toml                  # Workspace manifest
 ├── ARCHITECTURE.md
@@ -46,6 +47,7 @@ members = [
   "contracts/escrow",
   "contracts/vesting",
   "contracts/oracle",
+  "contracts/dao-voting",
 ]
 resolver = "2"
 
@@ -284,6 +286,35 @@ is_stale(asset, max_age)  → get_price(asset), then
 
 ---
 
+### `dao-voting`
+
+On-chain proposal and voting, one-address-one-vote. One contract instance holds many proposals, each identified by an incrementing ID — the same registry pattern as `multisig`/`escrow`/`vesting`.
+
+**State (per proposal):**
+```
+Proposal(id)    → { proposer, description, deadline, for_votes, against_votes, status }
+Voted(id, addr) → bool
+ProposalCount   → u32
+```
+
+**Lifecycle:**
+```
+propose(proposer, description, voting_duration) → proposal_id
+  │  deadline = now + voting_duration
+  │
+  ├─ vote(voter, id, support)     ← once per address, only while Active and before deadline
+  │
+  └─ finalize(caller, id)         ← anyone, only once, only after deadline
+       └─ Passed if for_votes > against_votes, else Rejected (a tie rejects)
+```
+
+**Key design decisions:**
+- Deliberately does not execute anything — it only records an outcome. A real governance system pairs this with another contract (e.g. `access-control` or `multisig`) that checks a proposal's `status` before acting; keeping voting and execution separate keeps this contract simple and composable.
+- `vote()` and `finalize()` both `require_auth()` the actual caller — for `finalize()` this isn't an authorization gate (anyone may call it), it's just so the caller's identity is authenticated for the emitted event.
+- A tie counts as `Rejected`, not `Passed` — `for_votes > against_votes` is a strict inequality.
+
+---
+
 ## Build
 
 Build all contracts to WASM:
@@ -331,7 +362,7 @@ cargo test
 
 Testnet deployments are tracked in `deployments.json`. When a contract is deployed or redeployed, the file is updated and committed.
 
-All 8 contracts are live on testnet:
+All 9 contracts are live on testnet:
 
 | Contract | Testnet ID |
 |----------|-----------|
@@ -343,6 +374,7 @@ All 8 contracts are live on testnet:
 | `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` |
 | `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` |
 | `oracle` | `CDX4U7QYTAGLEOOBUEJPTGONEV5HHXIK4BN7BHLOQAVRDGMWGWOX76SH` |
+| `dao-voting` | `CBZOOLSCJFAHHOKM575MBHXAPBI3IWXLJYZV5L3DNX5P4NAL2JNHNLTE` |
 
 The `soroban-devkit-core` integration tests read `deployments.json` to resolve contract IDs at test time.
 
