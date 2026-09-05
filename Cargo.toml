@@ -8,6 +8,7 @@ members = [
   "contracts/escrow",
   "contracts/vesting",
   "contracts/oracle",
+  "contracts/dao-voting",
 ]
 resolver = "2"
 
