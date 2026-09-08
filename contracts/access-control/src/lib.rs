@@ -19,11 +19,15 @@ pub struct AccessControlContract;
 
 #[contractimpl]
 impl AccessControlContract {
-    /// Initialize with a super admin address. The super admin doesn't hold
-    /// every role outright (has_role still returns false until a role is
-    /// explicitly granted) — instead, require_role_admin lets them bypass
-    /// the admin check entirely, so they can grant or revoke any role.
+    /// Initialize with a super admin address. Can only be called once.
+    /// The super admin doesn't hold every role outright (has_role still
+    /// returns false until a role is explicitly granted) — instead,
+    /// require_role_admin lets them bypass the admin check entirely, so
+    /// they can grant or revoke any role.
     pub fn initialize(env: Env, super_admin: Address) {
+        if storage::is_initialized(&env) {
+            panic!("already initialized");
+        }
         storage::set_super_admin(&env, &super_admin);
     }
 
@@ -129,6 +133,24 @@ mod tests {
         // delegate can now grant "minter" without being the super admin.
         client.grant_role(&delegate, &minter_role, &user);
         assert!(client.has_role(&minter_role, &user));
+    }
+
+    #[test]
+    #[should_panic(expected = "already initialized")]
+    fn test_cannot_initialize_twice() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+
+        client.initialize(&super_admin);
+        // A second initialize call must never succeed — otherwise anyone
+        // could re-run it with their own address and hijack super admin.
+        client.initialize(&attacker);
     }
 
     #[test]

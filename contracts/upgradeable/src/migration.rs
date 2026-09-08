@@ -19,9 +19,9 @@ pub fn run(env: &Env, current_version: u32) -> u32 {
         return current_version;
     }
     match current_version {
-        // v1 -> v2: no state migration needed in the base scaffold
-        // TODO: add migration logic for v2 here when ready
-        // See: https://github.com/soroban-devkit/soroban-devkit-contracts/issues/8
+        // v1 -> v2: no state migration needed in the base scaffold.
+        // Add a match arm here (with real storage writes) the day a version
+        // actually changes the shape of stored state.
         1 => 2,
         other => other + 1,
     }

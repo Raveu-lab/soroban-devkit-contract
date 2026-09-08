@@ -5,6 +5,12 @@
 
 use soroban_sdk::{Address, Env, Symbol};
 
+pub fn is_initialized(env: &Env) -> bool {
+    env.storage()
+        .instance()
+        .has(&Symbol::new(env, "SuperAdmin"))
+}
+
 pub fn set_super_admin(env: &Env, addr: &Address) {
     env.storage()
         .instance()
