@@ -170,6 +170,8 @@ execute(proposal_id)    ← callable once approvals >= threshold
 
 **Cross-contract calls:** `token_client.rs` declares a minimal `TokenInterface` trait via `#[contractclient]` rather than depending on `soroban-token`'s crate directly — `execute()` works against any deployed contract exposing the standard `transfer(from, to, amount)` signature, not just this repo's own token contract. The multisig contract authorizes the transfer as itself via `env.current_contract_address()`, so it must hold the token balance it's proposing to send.
 
+`initialize()` rejects a `signers` list containing the same address twice. `count_approvals()` sums one approval per entry in the signers list (not per unique address), so a duplicate would let that one signer's single approval count twice toward the threshold — silently weakening the M-of-N guarantee.
+
 ---
 
 ### `event-rich`

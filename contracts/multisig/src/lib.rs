@@ -31,6 +31,16 @@ impl MultisigContract {
         if threshold == 0 || threshold as usize > signers.len() as usize {
             panic!("invalid threshold");
         }
+        // count_approvals() sums one approval per entry in the signers
+        // list, not per unique address — a duplicate would let that one
+        // signer's approval count twice toward the threshold.
+        for i in 0..signers.len() {
+            for j in (i + 1)..signers.len() {
+                if signers.get(i).unwrap() == signers.get(j).unwrap() {
+                    panic!("duplicate signer");
+                }
+            }
+        }
         storage::set_signers(&env, &signers);
         storage::set_threshold(&env, threshold);
         storage::set_proposal_count(&env, 0);
@@ -198,6 +208,26 @@ mod tests {
 
         client.execute(&signers.get(0).unwrap(), &proposal_id);
         client.execute(&signers.get(0).unwrap(), &proposal_id);
+    }
+
+    #[test]
+    #[should_panic(expected = "duplicate signer")]
+    fn test_initialize_rejects_duplicate_signers() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(MultisigContract, ());
+        let client = MultisigContractClient::new(&env, &contract_id);
+
+        let a = Address::generate(&env);
+        let b = Address::generate(&env);
+        let mut signers = Vec::new(&env);
+        signers.push_back(a.clone());
+        signers.push_back(b);
+        signers.push_back(a); // duplicate — would let `a` alone satisfy a
+                              // threshold of 2 by "approving" once, since
+                              // count_approvals iterates signers, not a set.
+        client.initialize(&signers, &2);
     }
 
     #[test]
