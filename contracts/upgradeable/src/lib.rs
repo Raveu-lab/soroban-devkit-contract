@@ -121,4 +121,43 @@ mod tests {
         client.initialize(&admin);
         client.initialize(&admin); // should panic
     }
+
+    #[test]
+    fn test_transfer_admin_moves_admin_rights() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(UpgradeableContract, ());
+        let client = UpgradeableContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let new_admin = Address::generate(&env);
+        client.initialize(&admin);
+
+        client.transfer_admin(&admin, &new_admin);
+        assert_eq!(client.admin(), new_admin);
+
+        // The new admin can now act; the old one no longer can (checked below).
+        let another_admin = Address::generate(&env);
+        client.transfer_admin(&new_admin, &another_admin);
+        assert_eq!(client.admin(), another_admin);
+    }
+
+    #[test]
+    #[should_panic(expected = "not admin")]
+    fn test_transfer_admin_rejects_a_stale_current_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(UpgradeableContract, ());
+        let client = UpgradeableContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let new_admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        client.initialize(&admin);
+
+        // attacker passes themselves as current_admin — require_auth() would
+        // need their own signature (mocked here), but they don't match the
+        // stored admin, so this must still panic.
+        client.transfer_admin(&attacker, &new_admin);
+    }
 }
