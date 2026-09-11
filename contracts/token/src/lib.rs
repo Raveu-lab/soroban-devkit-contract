@@ -52,6 +52,10 @@ impl TokenContract {
         let admin = storage::get_admin(&env);
         admin.require_auth();
 
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+
         let balance = storage::get_balance(&env, &to);
         storage::set_balance(&env, &to, balance + amount);
         events::emit_mint(&env, &to, amount);
@@ -62,6 +66,10 @@ impl TokenContract {
     /// Emits a `transfer` event on success.
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
         from.require_auth();
+
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
 
         let from_balance = storage::get_balance(&env, &from);
         if from_balance < amount {
@@ -79,6 +87,11 @@ impl TokenContract {
     /// Requires auth from `from`. Emits an `approve` event on success.
     pub fn approve(env: Env, from: Address, spender: Address, amount: i128, expiry_ledger: u32) {
         from.require_auth();
+
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+
         storage::set_allowance(&env, &from, &spender, amount, expiry_ledger);
         events::emit_approve(&env, &from, &spender, amount, expiry_ledger);
     }
@@ -89,6 +102,10 @@ impl TokenContract {
     /// Emits the same `transfer` event as a direct transfer.
     pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
+
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
 
         let allowance = storage::get_allowance(&env, &from, &spender);
         if allowance < amount {
@@ -114,6 +131,10 @@ impl TokenContract {
     pub fn burn(env: Env, from: Address, amount: i128) {
         from.require_auth();
 
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+
         let balance = storage::get_balance(&env, &from);
         if balance < amount {
             panic!("insufficient balance");
@@ -133,6 +154,10 @@ impl TokenContract {
 
         if !storage::get_clawback_enabled(&env) {
             panic!("clawback not enabled");
+        }
+
+        if amount <= 0 {
+            panic!("amount must be positive");
         }
 
         let balance = storage::get_balance(&env, &from);
@@ -484,6 +509,150 @@ mod tests {
         client.mint(&user, &1_000_000);
 
         client.clawback(&user, &400_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_transfer_rejects_negative_amount() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let victim = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&victim, &1_000_000);
+
+        // With no amount check, from_balance - amount is from_balance + 1000
+        // (an increase) and to_balance + amount is to_balance - 1000 (a
+        // decrease) — a zero-balance attacker could mint themselves funds
+        // and drain the victim in one self-authorized call.
+        client.transfer(&attacker, &victim, &-1_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_transfer_from_rejects_negative_amount() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let alice = Address::generate(&env);
+        let spender = Address::generate(&env);
+        let bob = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&alice, &1_000_000);
+        client.approve(&alice, &spender, &500_000, &1000);
+
+        client.transfer_from(&spender, &alice, &bob, &-1_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_mint_rejects_negative_amount() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&user, &1_000_000);
+
+        // balance + amount with a negative amount would silently decrease
+        // the target's balance instead of erroring.
+        client.mint(&user, &-1_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_burn_rejects_negative_amount() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&user, &1_000_000);
+
+        // balance - amount with a negative amount would silently increase
+        // the caller's own balance for free.
+        client.burn(&user, &-1_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_clawback_rejects_negative_amount() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &true,
+        );
+        client.mint(&user, &1_000_000);
+
+        client.clawback(&user, &-1_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_approve_rejects_negative_amount() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let alice = Address::generate(&env);
+        let spender = Address::generate(&env);
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+
+        client.approve(&alice, &spender, &-1_000, &1000);
     }
 
     #[test]

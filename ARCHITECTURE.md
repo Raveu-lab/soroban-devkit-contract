@@ -98,6 +98,7 @@ A complete SEP-41 compliant fungible token.
 - Allowances use a composite key `(owner, spender)` with TTL management
 - `clawback_enabled` is fixed at `initialize()` — like Stellar classic assets, it cannot be toggled afterward. `clawback()` panics if it was never enabled.
 - `burn()` requires auth from the token holder (self-service); `clawback()` requires auth from the admin and works on any address — the two exist for genuinely different purposes despite both reducing a balance without a corresponding recipient.
+- Every state-changing function (`mint`, `transfer`, `transfer_from`, `burn`, `clawback`, `approve`) rejects `amount <= 0` before touching storage. Without this, a negative amount would flip the arithmetic's direction — e.g. `transfer`'s `from_balance - amount` becomes an *increase* and `to_balance + amount` becomes a *decrease* for a negative `amount`, letting a zero-balance caller mint themselves funds out of thin air while draining the recipient, fully self-authorized (`from.require_auth()` only proves the caller controls `from`, not that `amount` is sane). Found and fixed after `amount <= 0` guards already existed in `escrow`/`vesting` but were missing here, in the contract everything else's `TokenClient` calls into.
 
 **Storage keys:**
 ```
