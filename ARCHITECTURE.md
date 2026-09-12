@@ -173,6 +173,8 @@ execute(proposal_id)    ← callable once approvals >= threshold
 
 `initialize()` rejects a `signers` list containing the same address twice. `count_approvals()` sums one approval per entry in the signers list (not per unique address), so a duplicate would let that one signer's single approval count twice toward the threshold — silently weakening the M-of-N guarantee.
 
+`propose()` rejects `amount <= 0`. `execute()` calls `token.transfer(contract, to, proposal.amount)` through `TokenInterface`, which works against any SEP-41-shaped token per the note below — not guaranteed to reject a negative amount itself (this repo's own `token` contract now does, but that's a property of that specific contract, not something `multisig` can rely on for an arbitrary token address a proposer names). Validated at `propose()` so a negative-amount proposal can't get M signers' approval in the first place.
+
 ---
 
 ### `event-rich`

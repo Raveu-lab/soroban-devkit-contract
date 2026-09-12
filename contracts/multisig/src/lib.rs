@@ -52,6 +52,10 @@ impl MultisigContract {
         proposer.require_auth();
         storage::require_signer(&env, &proposer);
 
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+
         let id = storage::get_proposal_count(&env);
         let proposal = Proposal {
             to: to.clone(),
@@ -228,6 +232,26 @@ mod tests {
                               // threshold of 2 by "approving" once, since
                               // count_approvals iterates signers, not a set.
         client.initialize(&signers, &2);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_propose_rejects_negative_amount() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (signers, contract_id) = setup(&env, 3, 2);
+        let client = MultisigContractClient::new(&env, &contract_id);
+
+        let token = Address::generate(&env);
+        let recipient = Address::generate(&env);
+
+        // execute() calls token.transfer(contract, to, proposal.amount) on
+        // whatever token the proposer named — TokenInterface works against
+        // any SEP-41-shaped token, not just this repo's own (which now
+        // rejects non-positive amounts itself). A malicious/buggy proposer
+        // shouldn't be able to get a negative-amount proposal past M
+        // signers' approval in the first place.
+        client.propose(&signers.get(0).unwrap(), &recipient, &-1_000, &token);
     }
 
     #[test]
