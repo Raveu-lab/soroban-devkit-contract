@@ -66,7 +66,89 @@ impl AccessControlContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env, Symbol};
+    use soroban_sdk::{
+        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
+        Symbol,
+    };
+
+    #[test]
+    fn test_grant_role_extends_the_persistent_entry_ttl() {
+        // Same class of gap fixed in oracle: a role-membership entry that
+        // never has its TTL extended eventually gets archived from
+        // disuse, even though nothing about the role assignment changed.
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        let role = Symbol::new(&env, "minter");
+
+        client.initialize(&super_admin);
+        client.grant_role(&super_admin, &role, &user);
+
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (
+                env.storage()
+                    .persistent()
+                    .get_ttl(&(role.clone(), user.clone())),
+                env.storage().max_ttl(),
+            )
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected grant_role to extend the TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_has_role_refreshes_the_ttl_of_an_aging_entry() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        let role = Symbol::new(&env, "minter");
+
+        client.initialize(&super_admin);
+        client.grant_role(&super_admin, &role, &user);
+
+        let initial_ttl = env.as_contract(&contract_id, || {
+            env.storage()
+                .persistent()
+                .get_ttl(&(role.clone(), user.clone()))
+        });
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_read = env.as_contract(&contract_id, || {
+            env.storage()
+                .persistent()
+                .get_ttl(&(role.clone(), user.clone()))
+        });
+        assert!(
+            ttl_before_read < initial_ttl,
+            "sanity check: TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.has_role(&role, &user);
+
+        let ttl_after_read = env.as_contract(&contract_id, || {
+            env.storage()
+                .persistent()
+                .get_ttl(&(role.clone(), user.clone()))
+        });
+        assert!(
+            ttl_after_read > ttl_before_read,
+            "has_role() should refresh the entry's TTL on read, not just on write"
+        );
+    }
 
     #[test]
     fn test_grant_and_check_role() {

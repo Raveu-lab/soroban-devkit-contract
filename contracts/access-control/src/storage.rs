@@ -5,6 +5,20 @@
 
 use soroban_sdk::{Address, Env, Symbol};
 
+/// How close to the network's max TTL a role-membership entry is kept —
+/// extended whenever its remaining TTL drops within this many ledgers of
+/// that max, back up to the max itself. Same approach as oracle's
+/// extend_price_ttl: self-adjusting to the network's actual max_ttl()
+/// rather than a fixed ledger-count guess tied to an assumed close time.
+const TTL_EXTEND_BUFFER: u32 = 1_000;
+
+fn extend_role_ttl(env: &Env, key: &(Symbol, Address)) {
+    let max_ttl = env.storage().max_ttl();
+    env.storage()
+        .persistent()
+        .extend_ttl(key, max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
+}
+
 pub fn is_initialized(env: &Env) -> bool {
     env.storage()
         .instance()
@@ -28,11 +42,16 @@ pub fn get_super_admin(env: &Env) -> Address {
 pub fn set_role(env: &Env, role: &Symbol, addr: &Address, has_role: bool) {
     let key = (role.clone(), addr.clone());
     env.storage().persistent().set(&key, &has_role);
+    extend_role_ttl(env, &key);
 }
 
 pub fn get_role(env: &Env, role: &Symbol, addr: &Address) -> bool {
     let key = (role.clone(), addr.clone());
-    env.storage().persistent().get(&key).unwrap_or(false)
+    let value = env.storage().persistent().get(&key);
+    if value.is_some() {
+        extend_role_ttl(env, &key);
+    }
+    value.unwrap_or(false)
 }
 
 /// Storage key: role -> admin_role
