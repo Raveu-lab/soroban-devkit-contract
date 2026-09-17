@@ -78,7 +78,9 @@ impl OracleContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, testutils::Ledger as _, Env};
+    use soroban_sdk::{
+        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
+    };
 
     fn setup(env: &Env) -> (Address, OracleContractClient<'_>) {
         env.mock_all_auths();
@@ -87,6 +89,70 @@ mod tests {
         let admin = Address::generate(env);
         client.initialize(&admin);
         (admin, client)
+    }
+
+    #[test]
+    fn test_set_price_extends_the_persistent_entry_ttl() {
+        // Persistent storage entries get archived if their TTL isn't
+        // periodically extended — set_price() never did this, so a price
+        // that sits untouched for long enough would become inaccessible
+        // (requiring a separate restore operation) even though the
+        // contract itself has no bug in its business logic.
+        let env = Env::default();
+        let (_admin, client) = setup(&env);
+        let asset = Symbol::new(&env, "BTC");
+
+        client.set_price(&asset, &5_000_000);
+
+        let (ttl, max_ttl) = env.as_contract(&client.address, || {
+            (
+                env.storage().persistent().get_ttl(&asset),
+                env.storage().max_ttl(),
+            )
+        });
+        // A plain, un-extended write's TTL is nowhere near the network
+        // max (a few thousand ledgers vs. several million) — extend_ttl()
+        // must actually be called, not just rely on however long a fresh
+        // write happens to live by default.
+        assert!(
+            ttl > max_ttl / 2,
+            "expected set_price to extend the TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_get_price_refreshes_the_ttl_of_an_aging_entry() {
+        let env = Env::default();
+        let (_admin, client) = setup(&env);
+        let asset = Symbol::new(&env, "BTC");
+        client.set_price(&asset, &5_000_000);
+
+        let initial_ttl = env.as_contract(&client.address, || {
+            env.storage().persistent().get_ttl(&asset)
+        });
+
+        // Advance the ledger far enough that the entry's TTL has visibly
+        // dropped, without expiring it outright.
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_read = env.as_contract(&client.address, || {
+            env.storage().persistent().get_ttl(&asset)
+        });
+        assert!(
+            ttl_before_read < initial_ttl,
+            "sanity check: TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.get_price(&asset);
+
+        let ttl_after_read = env.as_contract(&client.address, || {
+            env.storage().persistent().get_ttl(&asset)
+        });
+        assert!(
+            ttl_after_read > ttl_before_read,
+            "get_price() should refresh the entry's TTL on read, not just on write"
+        );
     }
 
     #[test]

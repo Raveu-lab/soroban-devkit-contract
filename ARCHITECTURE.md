@@ -291,6 +291,7 @@ is_stale(asset, max_age)  → get_price(asset), then
 - `is_stale` doesn't gate anything itself — it's a query the caller uses to decide what "too old" means for their own purpose. The contract has no opinion on acceptable staleness.
 - `saturating_sub` in `is_stale` guards against underflow (the release profile has `overflow-checks = true`, so a bare subtraction would panic on underflow) even though `timestamp` should never exceed the current ledger time by construction.
 - `price` is an opaque `i128` — the contract doesn't interpret decimals or units; publishers and readers must agree on that off-chain.
+- Every `set_price`/`get_price` extends the entry's persistent-storage TTL up toward `env.storage().max_ttl()` (via `extend_price_ttl` in `storage.rs`) — without this, an asset's price would eventually get archived from disuse even though nothing about it changed, requiring a separate restore operation before `get_price`/`is_stale` could work again. This is a real gap across most of this repo's other persistent-storage contracts too (only `oracle` and `token`'s allowances currently manage TTL) — worth applying the same pattern elsewhere.
 
 ---
 
