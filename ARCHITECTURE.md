@@ -52,14 +52,17 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-soroban-sdk = { version = "21.0.0", features = ["testutils"] }
+soroban-sdk = { version = "27.0.5" }
 ```
 
-Each contract's `Cargo.toml` references workspace dependencies:
+Each contract's `Cargo.toml` references the workspace dependency, adding `testutils` only for tests:
 
 ```toml
 [dependencies]
 soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
 ```
 
 This ensures all contracts stay on the same SDK version and simplifies upgrades.
