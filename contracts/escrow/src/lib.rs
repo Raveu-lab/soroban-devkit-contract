@@ -167,7 +167,10 @@ impl EscrowContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, testutils::Ledger as _, Env, String};
+    use soroban_sdk::{
+        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
+        String,
+    };
     use soroban_token::{TokenContract, TokenContractClient};
 
     struct Setup {
@@ -211,6 +214,74 @@ mod tests {
             recipient,
             arbiter,
         }
+    }
+
+    #[test]
+    fn test_deposit_extends_the_persistent_entry_ttl() {
+        // Same class of gap fixed in oracle/access-control/dao-voting: an
+        // escrow entry that never has its TTL extended eventually gets
+        // archived from disuse, even though nothing about it changed.
+        let env = Env::default();
+        let s = setup(&env);
+
+        let id = s.client.deposit(
+            &s.depositor,
+            &s.recipient,
+            &s.arbiter,
+            &s.token_id,
+            &400_000,
+            &1_000,
+        );
+
+        let (ttl, max_ttl) = env.as_contract(&s.contract_id, || {
+            (
+                env.storage()
+                    .persistent()
+                    .get_ttl(&(soroban_sdk::Symbol::new(&env, "E"), id)),
+                env.storage().max_ttl(),
+            )
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected deposit() to extend the TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_get_escrow_refreshes_the_ttl_of_an_aging_entry() {
+        let env = Env::default();
+        let s = setup(&env);
+        let id = s.client.deposit(
+            &s.depositor,
+            &s.recipient,
+            &s.arbiter,
+            &s.token_id,
+            &400_000,
+            &1_000,
+        );
+        let key = (soroban_sdk::Symbol::new(&env, "E"), id);
+
+        let initial_ttl =
+            env.as_contract(&s.contract_id, || env.storage().persistent().get_ttl(&key));
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_read =
+            env.as_contract(&s.contract_id, || env.storage().persistent().get_ttl(&key));
+        assert!(
+            ttl_before_read < initial_ttl,
+            "sanity check: TTL should have visibly decreased after advancing the ledger"
+        );
+
+        s.client.get_escrow(&id);
+
+        let ttl_after_read =
+            env.as_contract(&s.contract_id, || env.storage().persistent().get_ttl(&key));
+        assert!(
+            ttl_after_read > ttl_before_read,
+            "get_escrow() should refresh the entry's TTL on read, not just on write"
+        );
     }
 
     #[test]

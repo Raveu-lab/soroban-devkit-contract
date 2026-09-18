@@ -220,6 +220,7 @@ deposit(depositor, recipient, arbiter, token, amount, release_time) → escrow_i
 **Key design decisions:**
 - Like `multisig`, cross-contract token transfers go through a minimal `#[contractclient]`-declared `TokenInterface` (`token_client.rs`) rather than depending on `soroban-token`'s crate — works against any SEP-41-shaped token, not just this repo's own.
 - Once a dispute is raised, the normal depositor/timelock/recipient rules for `release`/`refund` no longer apply — only the arbiter can resolve it, in either direction.
+- `set_escrow`/`get_escrow` extend the entry's persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_escrow_ttl` in `storage.rs`) — same TTL-archival gap fixed in `oracle`/`access-control`/`dao-voting`, applied here.
 - `release` and `refund` are only valid from `Active` (or `Disputed`, for the arbiter path) — both are terminal once `Released` or `Refunded`.
 
 ---
@@ -292,7 +293,7 @@ is_stale(asset, max_age)  → get_price(asset), then
 - `is_stale` doesn't gate anything itself — it's a query the caller uses to decide what "too old" means for their own purpose. The contract has no opinion on acceptable staleness.
 - `saturating_sub` in `is_stale` guards against underflow (the release profile has `overflow-checks = true`, so a bare subtraction would panic on underflow) even though `timestamp` should never exceed the current ledger time by construction.
 - `price` is an opaque `i128` — the contract doesn't interpret decimals or units; publishers and readers must agree on that off-chain.
-- Every `set_price`/`get_price` extends the entry's persistent-storage TTL up toward `env.storage().max_ttl()` (via `extend_price_ttl` in `storage.rs`) — without this, an asset's price would eventually get archived from disuse even though nothing about it changed, requiring a separate restore operation before `get_price`/`is_stale` could work again. `access-control` and `dao-voting` now do the same; `escrow`, `multisig`, and `vesting` still don't manage TTL on their persistent entries — the same pattern applies there too.
+- Every `set_price`/`get_price` extends the entry's persistent-storage TTL up toward `env.storage().max_ttl()` (via `extend_price_ttl` in `storage.rs`) — without this, an asset's price would eventually get archived from disuse even though nothing about it changed, requiring a separate restore operation before `get_price`/`is_stale` could work again. `access-control`, `dao-voting`, and `escrow` now do the same; `multisig` and `vesting` still don't manage TTL on their persistent entries — the same pattern applies there too.
 
 ---
 
