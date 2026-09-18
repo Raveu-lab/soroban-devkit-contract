@@ -14,7 +14,7 @@ Explorer: [stellar.expert/explorer/testnet](https://stellar.expert/explorer/test
 | Contract | Contract ID | Explorer |
 |----------|-------------|---------|
 | `token` | `CATUGAK6QHMVJ5NUVXDHT3GO3K4KW224QMHZIPM5UHPGT65ED65S26EA` | [View](https://stellar.expert/explorer/testnet/contract/CATUGAK6QHMVJ5NUVXDHT3GO3K4KW224QMHZIPM5UHPGT65ED65S26EA) |
-| `access-control` | `CBFYOBMQF4Z625UVAG4C53KNJ7JVXNFRNBKMRQUCSY2YMORE5FI65QU6` | [View](https://stellar.expert/explorer/testnet/contract/CBFYOBMQF4Z625UVAG4C53KNJ7JVXNFRNBKMRQUCSY2YMORE5FI65QU6) |
+| `access-control` | `CD4JE7L4DEZD4XGMUF54ORJLQ2D7TKL5PBO2X535XTJOBA2DFLIWX5EM` | [View](https://stellar.expert/explorer/testnet/contract/CD4JE7L4DEZD4XGMUF54ORJLQ2D7TKL5PBO2X535XTJOBA2DFLIWX5EM) |
 | `upgradeable` | `CB2VSNSMBEOYZN2GJRZYTW6PYQAEMNFPCFJKW3YMQEDZKGXOLLKH3QQP` | [View](https://stellar.expert/explorer/testnet/contract/CB2VSNSMBEOYZN2GJRZYTW6PYQAEMNFPCFJKW3YMQEDZKGXOLLKH3QQP) |
 | `multisig` | `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` | [View](https://stellar.expert/explorer/testnet/contract/CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C) |
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` | [View](https://stellar.expert/explorer/testnet/contract/CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K) |
@@ -45,5 +45,6 @@ Not yet deployed.
 - When a contract is redeployed, update both this file and `deployments.json`
 - `token` was redeployed on 2026-09-11 to fix a critical bug: `mint`/`transfer`/`transfer_from`/`burn`/`clawback`/`approve` didn't reject non-positive amounts, so a negative amount could flip a transfer's arithmetic direction and let a caller mint themselves funds while draining the recipient. The old address `CB5YCY5CYLNO3PTH3OXQKKT6XFXTSNIOYSC5B65XE4ZZE6MVIWGD2LNH` should be treated as vulnerable and not used.
 - `oracle` was redeployed on 2026-09-17: `set_price`/`get_price` now extend the price entry's persistent-storage TTL, so it no longer gets archived from disuse. The old address `CDX4U7QYTAGLEOOBUEJPTGONEV5HHXIK4BN7BHLOQAVRDGMWGWOX76SH` still works for read/write today but its prices won't have their TTL managed.
+- `access-control` was redeployed on 2026-09-18, same TTL fix applied to `set_role`/`get_role`. The old address `CBFYOBMQF4Z625UVAG4C53KNJ7JVXNFRNBKMRQUCSY2YMORE5FI65QU6` still works but doesn't manage TTL on role-membership entries.
 - The `soroban-devkit-core` integration tests read `deployments.json` to resolve IDs at test time
 - Testnet state resets periodically — check [status.stellar.org](https://status.stellar.org) if a contract ID stops responding
