@@ -21,7 +21,7 @@ Explorer: [stellar.expert/explorer/testnet](https://stellar.expert/explorer/test
 | `escrow` | `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` | [View](https://stellar.expert/explorer/testnet/contract/CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M) |
 | `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` | [View](https://stellar.expert/explorer/testnet/contract/CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5) |
 | `oracle` | `CD6LFXHN6HJ432OIUJNGJ7QO3Q6I3DNSGUGCAP2RL4GR27PTMTZZJQBM` | [View](https://stellar.expert/explorer/testnet/contract/CD6LFXHN6HJ432OIUJNGJ7QO3Q6I3DNSGUGCAP2RL4GR27PTMTZZJQBM) |
-| `dao-voting` | `CBZOOLSCJFAHHOKM575MBHXAPBI3IWXLJYZV5L3DNX5P4NAL2JNHNLTE` | [View](https://stellar.expert/explorer/testnet/contract/CBZOOLSCJFAHHOKM575MBHXAPBI3IWXLJYZV5L3DNX5P4NAL2JNHNLTE) |
+| `dao-voting` | `CCU7KUN3VTWBQKQSXJXIWHTN6AG42BIUTP6H3EE656GYMEKBBLJJWLUB` | [View](https://stellar.expert/explorer/testnet/contract/CCU7KUN3VTWBQKQSXJXIWHTN6AG42BIUTP6H3EE656GYMEKBBLJJWLUB) |
 
 ### Deployer Account
 
@@ -46,5 +46,6 @@ Not yet deployed.
 - `token` was redeployed on 2026-09-11 to fix a critical bug: `mint`/`transfer`/`transfer_from`/`burn`/`clawback`/`approve` didn't reject non-positive amounts, so a negative amount could flip a transfer's arithmetic direction and let a caller mint themselves funds while draining the recipient. The old address `CB5YCY5CYLNO3PTH3OXQKKT6XFXTSNIOYSC5B65XE4ZZE6MVIWGD2LNH` should be treated as vulnerable and not used.
 - `oracle` was redeployed on 2026-09-17: `set_price`/`get_price` now extend the price entry's persistent-storage TTL, so it no longer gets archived from disuse. The old address `CDX4U7QYTAGLEOOBUEJPTGONEV5HHXIK4BN7BHLOQAVRDGMWGWOX76SH` still works for read/write today but its prices won't have their TTL managed.
 - `access-control` was redeployed on 2026-09-18, same TTL fix applied to `set_role`/`get_role`. The old address `CBFYOBMQF4Z625UVAG4C53KNJ7JVXNFRNBKMRQUCSY2YMORE5FI65QU6` still works but doesn't manage TTL on role-membership entries.
+- `dao-voting` was redeployed on 2026-09-18, same TTL fix applied to proposals and vote records. The old address `CBZOOLSCJFAHHOKM575MBHXAPBI3IWXLJYZV5L3DNX5P4NAL2JNHNLTE` still works but doesn't manage TTL.
 - The `soroban-devkit-core` integration tests read `deployments.json` to resolve IDs at test time
 - Testnet state resets periodically — check [status.stellar.org](https://status.stellar.org) if a contract ID stops responding
