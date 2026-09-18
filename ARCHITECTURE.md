@@ -292,7 +292,7 @@ is_stale(asset, max_age)  → get_price(asset), then
 - `is_stale` doesn't gate anything itself — it's a query the caller uses to decide what "too old" means for their own purpose. The contract has no opinion on acceptable staleness.
 - `saturating_sub` in `is_stale` guards against underflow (the release profile has `overflow-checks = true`, so a bare subtraction would panic on underflow) even though `timestamp` should never exceed the current ledger time by construction.
 - `price` is an opaque `i128` — the contract doesn't interpret decimals or units; publishers and readers must agree on that off-chain.
-- Every `set_price`/`get_price` extends the entry's persistent-storage TTL up toward `env.storage().max_ttl()` (via `extend_price_ttl` in `storage.rs`) — without this, an asset's price would eventually get archived from disuse even though nothing about it changed, requiring a separate restore operation before `get_price`/`is_stale` could work again. `access-control` now does the same for role membership; `escrow`, `multisig`, `vesting`, and `dao-voting` still don't manage TTL on their persistent entries — the same pattern applies there too.
+- Every `set_price`/`get_price` extends the entry's persistent-storage TTL up toward `env.storage().max_ttl()` (via `extend_price_ttl` in `storage.rs`) — without this, an asset's price would eventually get archived from disuse even though nothing about it changed, requiring a separate restore operation before `get_price`/`is_stale` could work again. `access-control` and `dao-voting` now do the same; `escrow`, `multisig`, and `vesting` still don't manage TTL on their persistent entries — the same pattern applies there too.
 
 ---
 
@@ -322,6 +322,7 @@ propose(proposer, description, voting_duration) → proposal_id
 - Deliberately does not execute anything — it only records an outcome. A real governance system pairs this with another contract (e.g. `access-control` or `multisig`) that checks a proposal's `status` before acting; keeping voting and execution separate keeps this contract simple and composable.
 - `vote()` and `finalize()` both `require_auth()` the actual caller — for `finalize()` this isn't an authorization gate (anyone may call it), it's just so the caller's identity is authenticated for the emitted event.
 - A tie counts as `Rejected`, not `Passed` — `for_votes > against_votes` is a strict inequality.
+- `Proposal(id)` and `Voted(id, addr)` both extend their persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_persistent_ttl` in `storage.rs`, generic over the key type this time rather than one function per key shape like `oracle`/`access-control`) — same TTL-archival gap fixed there, applied here across both key shapes this contract has.
 
 ---
 

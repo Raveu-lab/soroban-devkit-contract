@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 3,
+    "address": 2,
     "nonce": 0,
     "mux_id": 0
   },
@@ -19,7 +19,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "string": "Proposal"
+                  "string": "Raise the fee cap"
                 },
                 {
                   "u64": "1000"
@@ -31,12 +31,15 @@
         }
       ]
     ],
+    [],
+    [],
+    [],
     []
   ],
   "ledger": {
     "protocol_version": 27,
-    "sequence_number": 0,
-    "timestamp": 1001,
+    "sequence_number": 3155999,
+    "timestamp": 0,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -84,7 +87,7 @@
                       "symbol": "description"
                     },
                     "val": {
-                      "string": "Proposal"
+                      "string": "Raise the fee cap"
                     }
                   },
                   {
@@ -121,7 +124,7 @@
           },
           "ext": "v0"
         },
-        "live_until": 6311999
+        "live_until": 9467998
       },
       {
         "entry": {
@@ -153,7 +156,7 @@
           },
           "ext": "v0"
         },
-        "live_until": 4095
+        "live_until": 3160094
       },
       {
         "entry": {

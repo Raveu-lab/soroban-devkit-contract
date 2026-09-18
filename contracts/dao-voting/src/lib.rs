@@ -115,7 +115,9 @@ impl DaoVotingContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, testutils::Ledger as _, Env};
+    use soroban_sdk::{
+        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
+    };
 
     fn setup(env: &Env) -> (Address, DaoVotingContractClient<'_>) {
         env.mock_all_auths();
@@ -123,6 +125,97 @@ mod tests {
         let client = DaoVotingContractClient::new(env, &contract_id);
         let proposer = Address::generate(env);
         (proposer, client)
+    }
+
+    #[test]
+    fn test_propose_extends_the_persistent_entry_ttl() {
+        // Same class of gap fixed in oracle/access-control: a proposal
+        // entry that never has its TTL extended eventually gets archived
+        // from disuse, even though the proposal itself hasn't changed.
+        let env = Env::default();
+        let (proposer, client) = setup(&env);
+
+        let id = client.propose(
+            &proposer,
+            &String::from_str(&env, "Raise the fee cap"),
+            &1_000,
+        );
+
+        let contract_id = client.address.clone();
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (
+                env.storage()
+                    .persistent()
+                    .get_ttl(&(soroban_sdk::Symbol::new(&env, "P"), id)),
+                env.storage().max_ttl(),
+            )
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected propose() to extend the TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_get_proposal_refreshes_the_ttl_of_an_aging_entry() {
+        let env = Env::default();
+        let (proposer, client) = setup(&env);
+        let id = client.propose(
+            &proposer,
+            &String::from_str(&env, "Raise the fee cap"),
+            &1_000,
+        );
+        let contract_id = client.address.clone();
+        let key = (soroban_sdk::Symbol::new(&env, "P"), id);
+
+        let initial_ttl =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&key));
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_read =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&key));
+        assert!(
+            ttl_before_read < initial_ttl,
+            "sanity check: TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.get_proposal(&id);
+
+        let ttl_after_read =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&key));
+        assert!(
+            ttl_after_read > ttl_before_read,
+            "get_proposal() should refresh the entry's TTL on read, not just on write"
+        );
+    }
+
+    #[test]
+    fn test_vote_extends_the_persistent_vote_record_ttl() {
+        let env = Env::default();
+        let (proposer, client) = setup(&env);
+        let voter = Address::generate(&env);
+        let id = client.propose(
+            &proposer,
+            &String::from_str(&env, "Raise the fee cap"),
+            &1_000,
+        );
+
+        client.vote(&voter, &id, &true);
+
+        let contract_id = client.address.clone();
+        let key = (soroban_sdk::Symbol::new(&env, "V"), id, voter);
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (
+                env.storage().persistent().get_ttl(&key),
+                env.storage().max_ttl(),
+            )
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected vote() to extend the vote record's TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
     }
 
     #[test]
