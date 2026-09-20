@@ -125,7 +125,10 @@ impl MultisigContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env, Vec};
+    use soroban_sdk::{
+        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
+        Vec,
+    };
 
     fn setup(env: &Env, n: u32, threshold: u32) -> (Vec<Address>, Address) {
         let contract_id = env.register(MultisigContract, ());
@@ -136,6 +139,104 @@ mod tests {
         let client = MultisigContractClient::new(env, &contract_id);
         client.initialize(&signers, &threshold);
         (signers, contract_id)
+    }
+
+    #[test]
+    fn test_propose_extends_the_persistent_entry_ttl() {
+        // Same class of gap fixed in oracle/access-control/dao-voting/
+        // escrow: a proposal entry that never has its TTL extended
+        // eventually gets archived from disuse, even though nothing about
+        // it changed.
+        let env = Env::default();
+        env.mock_all_auths();
+        let (signers, contract_id) = setup(&env, 3, 2);
+        let client = MultisigContractClient::new(&env, &contract_id);
+
+        let token = Address::generate(&env);
+        let recipient = Address::generate(&env);
+        let id = client.propose(&signers.get(0).unwrap(), &recipient, &1_000_000, &token);
+
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (
+                env.storage()
+                    .persistent()
+                    .get_ttl(&(soroban_sdk::Symbol::new(&env, "P"), id)),
+                env.storage().max_ttl(),
+            )
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected propose() to extend the TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_approve_extends_the_persistent_approval_ttl() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (signers, contract_id) = setup(&env, 3, 2);
+        let client = MultisigContractClient::new(&env, &contract_id);
+
+        let token = Address::generate(&env);
+        let recipient = Address::generate(&env);
+        let id = client.propose(&signers.get(0).unwrap(), &recipient, &1_000_000, &token);
+        client.approve(&signers.get(0).unwrap(), &id);
+
+        let key = (
+            soroban_sdk::Symbol::new(&env, "A"),
+            id,
+            signers.get(0).unwrap(),
+        );
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (
+                env.storage().persistent().get_ttl(&key),
+                env.storage().max_ttl(),
+            )
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected approve() to extend the approval's TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_count_approvals_refreshes_the_ttl_of_an_aging_approval() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (signers, contract_id) = setup(&env, 3, 2);
+        let client = MultisigContractClient::new(&env, &contract_id);
+
+        let token = Address::generate(&env);
+        let recipient = Address::generate(&env);
+        let id = client.propose(&signers.get(0).unwrap(), &recipient, &1_000_000, &token);
+        client.approve(&signers.get(0).unwrap(), &id);
+
+        let key = (
+            soroban_sdk::Symbol::new(&env, "A"),
+            id,
+            signers.get(0).unwrap(),
+        );
+        let initial_ttl =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&key));
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_read =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&key));
+        assert!(
+            ttl_before_read < initial_ttl,
+            "sanity check: TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.approval_count(&id);
+
+        let ttl_after_read =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&key));
+        assert!(
+            ttl_after_read > ttl_before_read,
+            "approval_count() should refresh an existing approval's TTL on read, not just on write"
+        );
     }
 
     #[test]
