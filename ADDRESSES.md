@@ -16,7 +16,7 @@ Explorer: [stellar.expert/explorer/testnet](https://stellar.expert/explorer/test
 | `token` | `CATUGAK6QHMVJ5NUVXDHT3GO3K4KW224QMHZIPM5UHPGT65ED65S26EA` | [View](https://stellar.expert/explorer/testnet/contract/CATUGAK6QHMVJ5NUVXDHT3GO3K4KW224QMHZIPM5UHPGT65ED65S26EA) |
 | `access-control` | `CD4JE7L4DEZD4XGMUF54ORJLQ2D7TKL5PBO2X535XTJOBA2DFLIWX5EM` | [View](https://stellar.expert/explorer/testnet/contract/CD4JE7L4DEZD4XGMUF54ORJLQ2D7TKL5PBO2X535XTJOBA2DFLIWX5EM) |
 | `upgradeable` | `CB2VSNSMBEOYZN2GJRZYTW6PYQAEMNFPCFJKW3YMQEDZKGXOLLKH3QQP` | [View](https://stellar.expert/explorer/testnet/contract/CB2VSNSMBEOYZN2GJRZYTW6PYQAEMNFPCFJKW3YMQEDZKGXOLLKH3QQP) |
-| `multisig` | `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` | [View](https://stellar.expert/explorer/testnet/contract/CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C) |
+| `multisig` | `CCGKDANXX43YGJDI7LLPQ5BB4OEWG54TIWJWYJSNUMK3I4FDDSHYU2AI` | [View](https://stellar.expert/explorer/testnet/contract/CCGKDANXX43YGJDI7LLPQ5BB4OEWG54TIWJWYJSNUMK3I4FDDSHYU2AI) |
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` | [View](https://stellar.expert/explorer/testnet/contract/CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K) |
 | `escrow` | `CCOHN5UT565GGRQ63VB5DOUBXI56OCM7IB3RTIL2UIA264FECSNAOW4S` | [View](https://stellar.expert/explorer/testnet/contract/CCOHN5UT565GGRQ63VB5DOUBXI56OCM7IB3RTIL2UIA264FECSNAOW4S) |
 | `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` | [View](https://stellar.expert/explorer/testnet/contract/CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5) |
@@ -48,5 +48,6 @@ Not yet deployed.
 - `access-control` was redeployed on 2026-09-18, same TTL fix applied to `set_role`/`get_role`. The old address `CBFYOBMQF4Z625UVAG4C53KNJ7JVXNFRNBKMRQUCSY2YMORE5FI65QU6` still works but doesn't manage TTL on role-membership entries.
 - `dao-voting` was redeployed on 2026-09-18, same TTL fix applied to proposals and vote records. The old address `CBZOOLSCJFAHHOKM575MBHXAPBI3IWXLJYZV5L3DNX5P4NAL2JNHNLTE` still works but doesn't manage TTL.
 - `escrow` was redeployed on 2026-09-18, same TTL fix applied to escrow entries. The old address `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` still works but doesn't manage TTL.
+- `multisig` was redeployed on 2026-09-20, same TTL fix applied to proposals and approvals. The old address `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` still works but doesn't manage TTL.
 - The `soroban-devkit-core` integration tests read `deployments.json` to resolve IDs at test time
 - Testnet state resets periodically — check [status.stellar.org](https://status.stellar.org) if a contract ID stops responding
