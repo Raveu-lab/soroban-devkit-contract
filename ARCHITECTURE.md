@@ -124,6 +124,7 @@ A standalone role-based access control contract intended to be composed with oth
 - Supports role admin — each role has a designated admin role that can grant/revoke it
 - Emits `RoleGranted` and `RoleRevoked` events on every change
 - `set_role`/`get_role` extend a role-membership entry's persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_role_ttl` in `storage.rs`), the same pattern used in `oracle` — without it, a role assignment left untouched for long enough would get archived even though nothing about it changed.
+- `set_super_admin`/`get_super_admin` also extend the whole contract **instance's** TTL (`extend_instance_ttl` in `storage.rs`), same as `oracle`'s `set_admin`/`get_admin` — `SuperAdmin` lives in instance storage and `require_role_admin` reads it on every `grant_role`/`revoke_role`/`set_role_admin` call, so losing the instance to archival would make the whole contract inoperable, not just one role entry.
 
 ---
 
@@ -297,7 +298,7 @@ is_stale(asset, max_age)  → get_price(asset), then
 - `saturating_sub` in `is_stale` guards against underflow (the release profile has `overflow-checks = true`, so a bare subtraction would panic on underflow) even though `timestamp` should never exceed the current ledger time by construction.
 - `price` is an opaque `i128` — the contract doesn't interpret decimals or units; publishers and readers must agree on that off-chain.
 - Every `set_price`/`get_price` extends the entry's persistent-storage TTL up toward `env.storage().max_ttl()` (via `extend_price_ttl` in `storage.rs`) — without this, an asset's price would eventually get archived from disuse even though nothing about it changed, requiring a separate restore operation before `get_price`/`is_stale` could work again. `access-control`, `dao-voting`, `escrow`, `multisig`, and `vesting` all do the same now — every persistent-storage contract in this repo manages its own entries' TTL.
-- `set_admin`/`get_admin` also extend the whole contract **instance's** TTL (`extend_instance_ttl` in `storage.rs`) — a more severe version of the same gap, confirmed with the same default-vs-max_ttl check (4095 vs. several million ledgers): instance storage holds the admin address itself, so losing it to archival would make every function on the contract inoperable, not just one price entry. None of this repo's other contracts manage instance TTL yet — worth applying there too.
+- `set_admin`/`get_admin` also extend the whole contract **instance's** TTL (`extend_instance_ttl` in `storage.rs`) — a more severe version of the same gap, confirmed with the same default-vs-max_ttl check (4095 vs. several million ledgers): instance storage holds the admin address itself, so losing it to archival would make every function on the contract inoperable, not just one price entry. `access-control` now does the same for its `SuperAdmin` entry — the rest of this repo's contracts still need it, worth applying over the next few sessions.
 
 ---
 

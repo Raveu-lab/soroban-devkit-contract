@@ -67,9 +67,68 @@ impl AccessControlContract {
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
-        Symbol,
+        testutils::storage::Instance as _, testutils::storage::Persistent as _,
+        testutils::Address as _, testutils::Ledger as _, Env, Symbol,
     };
+
+    #[test]
+    fn test_initialize_extends_the_instance_ttl() {
+        // Same class of gap as oracle's instance TTL fix, but more severe
+        // here: SuperAdmin lives in instance storage and require_role_admin
+        // reads it on every grant_role/revoke_role/set_role_admin call. If
+        // the instance gets archived from disuse, the whole contract goes
+        // inoperable, not just one role entry.
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+        let super_admin = Address::generate(&env);
+
+        client.initialize(&super_admin);
+
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (env.storage().instance().get_ttl(), env.storage().max_ttl())
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected initialize to extend the instance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_grant_role_refreshes_the_instance_ttl_of_an_aging_contract() {
+        // grant_role -> require_role_admin -> get_super_admin, which reads
+        // instance storage. Every call that checks admin rights should
+        // refresh the instance TTL, not just initialize().
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        let role = Symbol::new(&env, "minter");
+        client.initialize(&super_admin);
+
+        let initial_ttl = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before_write < initial_ttl,
+            "sanity check: instance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.grant_role(&super_admin, &role, &user);
+
+        let ttl_after_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after_write > ttl_before_write,
+            "grant_role() (which reads the super admin via require_role_admin) should refresh the instance TTL too"
+        );
+    }
 
     #[test]
     fn test_grant_role_extends_the_persistent_entry_ttl() {

@@ -19,6 +19,17 @@ fn extend_role_ttl(env: &Env, key: &(Symbol, Address)) {
         .extend_ttl(key, max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
 }
 
+/// Extends the whole contract instance's TTL — same class of fix as
+/// extend_role_ttl, but more severe: instance storage holds SuperAdmin
+/// itself, so losing it to archival would make every function that checks
+/// admin rights inoperable, not just one role entry.
+fn extend_instance_ttl(env: &Env) {
+    let max_ttl = env.storage().max_ttl();
+    env.storage()
+        .instance()
+        .extend_ttl(max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
+}
+
 pub fn is_initialized(env: &Env) -> bool {
     env.storage()
         .instance()
@@ -29,13 +40,17 @@ pub fn set_super_admin(env: &Env, addr: &Address) {
     env.storage()
         .instance()
         .set(&Symbol::new(env, "SuperAdmin"), addr);
+    extend_instance_ttl(env);
 }
 
 pub fn get_super_admin(env: &Env) -> Address {
-    env.storage()
+    let super_admin = env
+        .storage()
         .instance()
         .get(&Symbol::new(env, "SuperAdmin"))
-        .unwrap()
+        .unwrap();
+    extend_instance_ttl(env);
+    super_admin
 }
 
 /// Storage key: (role, address) -> bool
