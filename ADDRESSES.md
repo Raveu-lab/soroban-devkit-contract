@@ -19,7 +19,7 @@ Explorer: [stellar.expert/explorer/testnet](https://stellar.expert/explorer/test
 | `multisig` | `CCGKDANXX43YGJDI7LLPQ5BB4OEWG54TIWJWYJSNUMK3I4FDDSHYU2AI` | [View](https://stellar.expert/explorer/testnet/contract/CCGKDANXX43YGJDI7LLPQ5BB4OEWG54TIWJWYJSNUMK3I4FDDSHYU2AI) |
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` | [View](https://stellar.expert/explorer/testnet/contract/CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K) |
 | `escrow` | `CCOHN5UT565GGRQ63VB5DOUBXI56OCM7IB3RTIL2UIA264FECSNAOW4S` | [View](https://stellar.expert/explorer/testnet/contract/CCOHN5UT565GGRQ63VB5DOUBXI56OCM7IB3RTIL2UIA264FECSNAOW4S) |
-| `vesting` | `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` | [View](https://stellar.expert/explorer/testnet/contract/CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5) |
+| `vesting` | `CD2BICKSY5C2TZL5HWOWMH43CGBSVITYTDST4LVE653CID6ITKUVW7IT` | [View](https://stellar.expert/explorer/testnet/contract/CD2BICKSY5C2TZL5HWOWMH43CGBSVITYTDST4LVE653CID6ITKUVW7IT) |
 | `oracle` | `CD6LFXHN6HJ432OIUJNGJ7QO3Q6I3DNSGUGCAP2RL4GR27PTMTZZJQBM` | [View](https://stellar.expert/explorer/testnet/contract/CD6LFXHN6HJ432OIUJNGJ7QO3Q6I3DNSGUGCAP2RL4GR27PTMTZZJQBM) |
 | `dao-voting` | `CCU7KUN3VTWBQKQSXJXIWHTN6AG42BIUTP6H3EE656GYMEKBBLJJWLUB` | [View](https://stellar.expert/explorer/testnet/contract/CCU7KUN3VTWBQKQSXJXIWHTN6AG42BIUTP6H3EE656GYMEKBBLJJWLUB) |
 
@@ -49,5 +49,6 @@ Not yet deployed.
 - `dao-voting` was redeployed on 2026-09-18, same TTL fix applied to proposals and vote records. The old address `CBZOOLSCJFAHHOKM575MBHXAPBI3IWXLJYZV5L3DNX5P4NAL2JNHNLTE` still works but doesn't manage TTL.
 - `escrow` was redeployed on 2026-09-18, same TTL fix applied to escrow entries. The old address `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` still works but doesn't manage TTL.
 - `multisig` was redeployed on 2026-09-20, same TTL fix applied to proposals and approvals. The old address `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` still works but doesn't manage TTL.
+- `vesting` was redeployed on 2026-09-21, same TTL fix applied to vesting schedules — the last of the six persistent-storage contracts to get it. The old address `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` still works but doesn't manage TTL.
 - The `soroban-devkit-core` integration tests read `deployments.json` to resolve IDs at test time
 - Testnet state resets periodically — check [status.stellar.org](https://status.stellar.org) if a contract ID stops responding
