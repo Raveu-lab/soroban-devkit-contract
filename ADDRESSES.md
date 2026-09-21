@@ -20,7 +20,7 @@ Explorer: [stellar.expert/explorer/testnet](https://stellar.expert/explorer/test
 | `event-rich` | `CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K` | [View](https://stellar.expert/explorer/testnet/contract/CBHSJRE3FJD7DZPNHQF66LGBQXPYCR425LLXPMUIX2IVHK6EKGMCE26K) |
 | `escrow` | `CCOHN5UT565GGRQ63VB5DOUBXI56OCM7IB3RTIL2UIA264FECSNAOW4S` | [View](https://stellar.expert/explorer/testnet/contract/CCOHN5UT565GGRQ63VB5DOUBXI56OCM7IB3RTIL2UIA264FECSNAOW4S) |
 | `vesting` | `CD2BICKSY5C2TZL5HWOWMH43CGBSVITYTDST4LVE653CID6ITKUVW7IT` | [View](https://stellar.expert/explorer/testnet/contract/CD2BICKSY5C2TZL5HWOWMH43CGBSVITYTDST4LVE653CID6ITKUVW7IT) |
-| `oracle` | `CD6LFXHN6HJ432OIUJNGJ7QO3Q6I3DNSGUGCAP2RL4GR27PTMTZZJQBM` | [View](https://stellar.expert/explorer/testnet/contract/CD6LFXHN6HJ432OIUJNGJ7QO3Q6I3DNSGUGCAP2RL4GR27PTMTZZJQBM) |
+| `oracle` | `CCU6IPNT2HQJOIBZ32GLWX7NRMKAGK22T7JCGPRYSZ6QMM57LHXX6UCK` | [View](https://stellar.expert/explorer/testnet/contract/CCU6IPNT2HQJOIBZ32GLWX7NRMKAGK22T7JCGPRYSZ6QMM57LHXX6UCK) |
 | `dao-voting` | `CCU7KUN3VTWBQKQSXJXIWHTN6AG42BIUTP6H3EE656GYMEKBBLJJWLUB` | [View](https://stellar.expert/explorer/testnet/contract/CCU7KUN3VTWBQKQSXJXIWHTN6AG42BIUTP6H3EE656GYMEKBBLJJWLUB) |
 
 ### Deployer Account
@@ -50,5 +50,6 @@ Not yet deployed.
 - `escrow` was redeployed on 2026-09-18, same TTL fix applied to escrow entries. The old address `CAHTJ7KOOIHITNV2HOCZXXGLS4ZXD64RZNOKQALLQ3ROIRBM6ZM27W2M` still works but doesn't manage TTL.
 - `multisig` was redeployed on 2026-09-20, same TTL fix applied to proposals and approvals. The old address `CCJQWDZ7TDPVUJMBPXCMBMVZ4WTGXVJZZ4DZTAJ3BCG2KQJFDX5B7J4C` still works but doesn't manage TTL.
 - `vesting` was redeployed on 2026-09-21, same TTL fix applied to vesting schedules — the last of the six persistent-storage contracts to get it. The old address `CDH42CTIXQ3OFEFHQTTBHR3IJ4HPEUNC2REM6DXH3K2QL23YKZY4K5W5` still works but doesn't manage TTL.
+- `oracle` was redeployed *again* on 2026-09-21: `set_admin`/`get_admin` now also extend the whole contract instance's TTL, a more severe version of the persistent-entry fix from 2026-09-17 above — losing instance storage would make every function inoperable, not just one price lookup. The 2026-09-17 address `CD6LFXHN6HJ432OIUJNGJ7QO3Q6I3DNSGUGCAP2RL4GR27PTMTZZJQBM` manages persistent-entry TTL but not instance TTL.
 - The `soroban-devkit-core` integration tests read `deployments.json` to resolve IDs at test time
 - Testnet state resets periodically — check [status.stellar.org](https://status.stellar.org) if a contract ID stops responding
