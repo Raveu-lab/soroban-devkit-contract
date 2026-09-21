@@ -185,7 +185,10 @@ impl VestingContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, testutils::Ledger as _, Env, String};
+    use soroban_sdk::{
+        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
+        String,
+    };
     use soroban_token::{TokenContract, TokenContractClient};
 
     struct Setup {
@@ -239,6 +242,60 @@ mod tests {
             &100,
             &1_000,
         )
+    }
+
+    #[test]
+    fn test_create_vesting_extends_the_persistent_entry_ttl() {
+        // Same class of gap fixed in oracle/access-control/dao-voting/
+        // escrow/multisig: a schedule entry that never has its TTL
+        // extended eventually gets archived from disuse, even though
+        // nothing about it changed.
+        let env = Env::default();
+        let s = setup(&env);
+        let id = create_default(&s);
+
+        let (ttl, max_ttl) = env.as_contract(&s.contract_id, || {
+            (
+                env.storage()
+                    .persistent()
+                    .get_ttl(&(soroban_sdk::Symbol::new(&env, "V"), id)),
+                env.storage().max_ttl(),
+            )
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected create_vesting() to extend the TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_get_schedule_refreshes_the_ttl_of_an_aging_entry() {
+        let env = Env::default();
+        let s = setup(&env);
+        let id = create_default(&s);
+        let key = (soroban_sdk::Symbol::new(&env, "V"), id);
+
+        let initial_ttl =
+            env.as_contract(&s.contract_id, || env.storage().persistent().get_ttl(&key));
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_read =
+            env.as_contract(&s.contract_id, || env.storage().persistent().get_ttl(&key));
+        assert!(
+            ttl_before_read < initial_ttl,
+            "sanity check: TTL should have visibly decreased after advancing the ledger"
+        );
+
+        s.client.get_schedule(&id);
+
+        let ttl_after_read =
+            env.as_contract(&s.contract_id, || env.storage().persistent().get_ttl(&key));
+        assert!(
+            ttl_after_read > ttl_before_read,
+            "get_schedule() should refresh the entry's TTL on read, not just on write"
+        );
     }
 
     #[test]

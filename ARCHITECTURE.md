@@ -266,6 +266,7 @@ create_vesting(depositor, beneficiary, token, total_amount,
 - Like `escrow`/`multisig`, cross-contract token transfers go through a minimal `#[contractclient]`-declared `TokenInterface` — works against any SEP-41-shaped token.
 - `revoke` settles the schedule in one transaction: it pays out earned-but-unclaimed tokens to the beneficiary (they keep what they've earned) and refunds only the unvested portion to the depositor — total distributed always equals `total_amount`.
 - `#[allow(clippy::too_many_arguments)]` on `create_vesting`: 7 real parameters plus `env` is a genuine business requirement here, not something worth hiding behind an options struct just to satisfy the lint.
+- `VestingSchedule(id)` extends its persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_schedule_ttl` in `storage.rs`) — the last of the six contracts to get this fix (`oracle`/`access-control`/`dao-voting`/`escrow`/`multisig` already had it); every persistent-storage contract in this repo now manages its own TTL.
 
 ---
 
@@ -295,7 +296,7 @@ is_stale(asset, max_age)  → get_price(asset), then
 - `is_stale` doesn't gate anything itself — it's a query the caller uses to decide what "too old" means for their own purpose. The contract has no opinion on acceptable staleness.
 - `saturating_sub` in `is_stale` guards against underflow (the release profile has `overflow-checks = true`, so a bare subtraction would panic on underflow) even though `timestamp` should never exceed the current ledger time by construction.
 - `price` is an opaque `i128` — the contract doesn't interpret decimals or units; publishers and readers must agree on that off-chain.
-- Every `set_price`/`get_price` extends the entry's persistent-storage TTL up toward `env.storage().max_ttl()` (via `extend_price_ttl` in `storage.rs`) — without this, an asset's price would eventually get archived from disuse even though nothing about it changed, requiring a separate restore operation before `get_price`/`is_stale` could work again. `access-control`, `dao-voting`, `escrow`, and `multisig` now do the same; `vesting` is the last one still without TTL management on its persistent entries — the same pattern applies there too.
+- Every `set_price`/`get_price` extends the entry's persistent-storage TTL up toward `env.storage().max_ttl()` (via `extend_price_ttl` in `storage.rs`) — without this, an asset's price would eventually get archived from disuse even though nothing about it changed, requiring a separate restore operation before `get_price`/`is_stale` could work again. `access-control`, `dao-voting`, `escrow`, `multisig`, and `vesting` all do the same now — every persistent-storage contract in this repo manages its own entries' TTL.
 
 ---
 
