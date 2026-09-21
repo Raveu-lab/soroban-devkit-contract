@@ -79,7 +79,8 @@ impl OracleContract {
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
+        testutils::storage::Instance as _, testutils::storage::Persistent as _,
+        testutils::Address as _, testutils::Ledger as _, Env,
     };
 
     fn setup(env: &Env) -> (Address, OracleContractClient<'_>) {
@@ -89,6 +90,57 @@ mod tests {
         let admin = Address::generate(env);
         client.initialize(&admin);
         (admin, client)
+    }
+
+    #[test]
+    fn test_initialize_extends_the_instance_ttl() {
+        // A more severe version of the persistent-entry TTL gap already
+        // fixed here: instance storage holds the admin address itself.
+        // Losing it to archival would make the whole contract inoperable
+        // (every function that reads get_admin() would fail), not just
+        // one record. Default write TTL is the same short 4095 ledgers as
+        // persistent storage gets, nowhere near max_ttl.
+        let env = Env::default();
+        let contract_id = env.register(OracleContract, ());
+        let client = OracleContractClient::new(&env, &contract_id);
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+
+        client.initialize(&admin);
+
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (env.storage().instance().get_ttl(), env.storage().max_ttl())
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected initialize() to extend the instance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_set_price_refreshes_the_instance_ttl_of_an_aging_contract() {
+        let env = Env::default();
+        let (_admin, client) = setup(&env);
+        let contract_id = client.address.clone();
+
+        let initial_ttl = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before_write < initial_ttl,
+            "sanity check: instance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.set_price(&Symbol::new(&env, "BTC"), &5_000_000);
+
+        let ttl_after_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after_write > ttl_before_write,
+            "set_price() (which reads the admin via require_auth) should refresh the instance TTL too, not just the price entry's"
+        );
     }
 
     #[test]

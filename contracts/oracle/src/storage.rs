@@ -24,6 +24,19 @@ fn extend_price_ttl(env: &Env, asset: &Symbol) {
     );
 }
 
+/// Extends the whole contract instance's TTL — a more severe version of
+/// extend_price_ttl: instance storage holds the admin address itself, so
+/// losing it to archival would make every function inoperable, not just
+/// one price entry. Same default write TTL (a few thousand ledgers) and
+/// same self-adjusting approach, just no key since it's the instance
+/// itself, not one entry within it.
+fn extend_instance_ttl(env: &Env) {
+    let max_ttl = env.storage().max_ttl();
+    env.storage()
+        .instance()
+        .extend_ttl(max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
+}
+
 pub fn is_initialized(env: &Env) -> bool {
     env.storage().instance().has(&Symbol::new(env, ADMIN_KEY))
 }
@@ -32,13 +45,17 @@ pub fn set_admin(env: &Env, admin: &Address) {
     env.storage()
         .instance()
         .set(&Symbol::new(env, ADMIN_KEY), admin);
+    extend_instance_ttl(env);
 }
 
 pub fn get_admin(env: &Env) -> Address {
-    env.storage()
+    let admin = env
+        .storage()
         .instance()
         .get(&Symbol::new(env, ADMIN_KEY))
-        .unwrap()
+        .unwrap();
+    extend_instance_ttl(env);
+    admin
 }
 
 pub fn set_price(env: &Env, asset: &Symbol, data: &PriceData) {
