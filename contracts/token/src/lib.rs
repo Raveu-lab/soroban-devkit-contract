@@ -198,7 +198,153 @@ impl TokenContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env};
+    use soroban_sdk::{
+        testutils::storage::Instance as _, testutils::storage::Persistent as _,
+        testutils::Address as _, testutils::Ledger as _, Env,
+    };
+
+    #[test]
+    fn test_initialize_extends_the_instance_ttl() {
+        // Same class of gap fixed in oracle/access-control, but this
+        // contract had NO TTL management at all before this fix — neither
+        // instance storage (Admin/Name/Symbol/Decimals/Clawback) nor the
+        // persistent balance entries below. Losing the instance would make
+        // every function inoperable, including reading name/symbol/decimals.
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (env.storage().instance().get_ttl(), env.storage().max_ttl())
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected initialize to extend the instance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_mint_refreshes_the_instance_ttl_of_an_aging_contract() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+
+        let initial_ttl = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before_write < initial_ttl,
+            "sanity check: instance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.mint(&user, &1_000_000);
+
+        let ttl_after_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after_write > ttl_before_write,
+            "mint() (which reads the admin via require_auth) should refresh the instance TTL"
+        );
+    }
+
+    #[test]
+    fn test_mint_extends_the_persistent_balance_ttl() {
+        // A balance that never has its TTL extended would eventually get
+        // archived from disuse, even though the holder did nothing wrong —
+        // requiring a separate restore operation before they could transact
+        // again. This affects every token holder who doesn't transact
+        // frequently, not just an edge case.
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&user, &1_000_000);
+
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (
+                env.storage().persistent().get_ttl(&user),
+                env.storage().max_ttl(),
+            )
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected mint to extend the balance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_balance_refreshes_the_ttl_of_an_aging_entry() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+
+        client.initialize(
+            &admin,
+            &String::from_str(&env, "DevKit Token"),
+            &String::from_str(&env, "DKT"),
+            &7,
+            &false,
+        );
+        client.mint(&user, &1_000_000);
+
+        let initial_ttl =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&user));
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_read =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&user));
+        assert!(
+            ttl_before_read < initial_ttl,
+            "sanity check: balance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.balance(&user);
+
+        let ttl_after_read =
+            env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&user));
+        assert!(
+            ttl_after_read > ttl_before_read,
+            "balance() should refresh the entry's TTL on read, not just on write"
+        );
+    }
 
     #[test]
     fn test_mint_and_balance() {

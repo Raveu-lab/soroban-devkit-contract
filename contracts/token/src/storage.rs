@@ -8,6 +8,30 @@ use soroban_sdk::{Address, Env, String, Symbol};
 const ADMIN_KEY: &str = "Admin";
 const CLAWBACK_KEY: &str = "Clawback";
 
+/// How close to the network's max TTL storage is kept — same self-adjusting
+/// approach used throughout this repo (oracle, access-control, etc.):
+/// extended whenever remaining TTL drops within this many ledgers of
+/// max_ttl(), back up to the max itself, rather than a fixed ledger-count
+/// guess tied to an assumed close time.
+const TTL_EXTEND_BUFFER: u32 = 1_000;
+
+/// Extends the whole contract instance's TTL — holds Admin, Name, Symbol,
+/// Decimals, and Clawback. Losing it to archival would make every function
+/// on the contract inoperable, not just one balance.
+fn extend_instance_ttl(env: &Env) {
+    let max_ttl = env.storage().max_ttl();
+    env.storage()
+        .instance()
+        .extend_ttl(max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
+}
+
+fn extend_balance_ttl(env: &Env, addr: &Address) {
+    let max_ttl = env.storage().max_ttl();
+    env.storage()
+        .persistent()
+        .extend_ttl(addr, max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
+}
+
 pub fn is_initialized(env: &Env) -> bool {
     env.storage().instance().has(&Symbol::new(env, ADMIN_KEY))
 }
@@ -16,13 +40,17 @@ pub fn set_admin(env: &Env, admin: &Address) {
     env.storage()
         .instance()
         .set(&Symbol::new(env, ADMIN_KEY), admin);
+    extend_instance_ttl(env);
 }
 
 pub fn get_admin(env: &Env) -> Address {
-    env.storage()
+    let admin = env
+        .storage()
         .instance()
         .get(&Symbol::new(env, ADMIN_KEY))
-        .unwrap()
+        .unwrap();
+    extend_instance_ttl(env);
+    admin
 }
 
 pub fn set_clawback_enabled(env: &Env, enabled: bool) {
@@ -39,11 +67,16 @@ pub fn get_clawback_enabled(env: &Env) -> bool {
 }
 
 pub fn get_balance(env: &Env, addr: &Address) -> i128 {
-    env.storage().persistent().get(addr).unwrap_or(0)
+    let balance = env.storage().persistent().get(addr);
+    if balance.is_some() {
+        extend_balance_ttl(env, addr);
+    }
+    balance.unwrap_or(0)
 }
 
 pub fn set_balance(env: &Env, addr: &Address, amount: i128) {
     env.storage().persistent().set(addr, &amount);
+    extend_balance_ttl(env, addr);
 }
 
 pub fn get_allowance(env: &Env, from: &Address, spender: &Address) -> i128 {
