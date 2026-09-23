@@ -19,6 +19,18 @@ fn extend_persistent_ttl<K: IntoVal<Env, Val>>(env: &Env, key: &K) {
         .extend_ttl(key, max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
 }
 
+/// Extends the whole contract instance's TTL — holds Signers, Threshold,
+/// and Count. Losing it to archival would make every function inoperable
+/// (require_signer reads Signers on every proposal/approval/execution),
+/// not just one proposal — same class of fix already applied in
+/// oracle/access-control/token.
+fn extend_instance_ttl(env: &Env) {
+    let max_ttl = env.storage().max_ttl();
+    env.storage()
+        .instance()
+        .extend_ttl(max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
+}
+
 pub fn is_initialized(env: &Env) -> bool {
     env.storage().instance().has(&Symbol::new(env, "Threshold"))
 }
@@ -27,39 +39,51 @@ pub fn set_signers(env: &Env, signers: &Vec<Address>) {
     env.storage()
         .instance()
         .set(&Symbol::new(env, "Signers"), signers);
+    extend_instance_ttl(env);
 }
 
 pub fn get_signers(env: &Env) -> Vec<Address> {
-    env.storage()
+    let signers = env
+        .storage()
         .instance()
         .get(&Symbol::new(env, "Signers"))
-        .unwrap()
+        .unwrap();
+    extend_instance_ttl(env);
+    signers
 }
 
 pub fn set_threshold(env: &Env, threshold: u32) {
     env.storage()
         .instance()
         .set(&Symbol::new(env, "Threshold"), &threshold);
+    extend_instance_ttl(env);
 }
 
 pub fn get_threshold(env: &Env) -> u32 {
-    env.storage()
+    let threshold = env
+        .storage()
         .instance()
         .get(&Symbol::new(env, "Threshold"))
-        .unwrap()
+        .unwrap();
+    extend_instance_ttl(env);
+    threshold
 }
 
 pub fn set_proposal_count(env: &Env, count: u32) {
     env.storage()
         .instance()
         .set(&Symbol::new(env, "Count"), &count);
+    extend_instance_ttl(env);
 }
 
 pub fn get_proposal_count(env: &Env) -> u32 {
-    env.storage()
+    let count = env
+        .storage()
         .instance()
         .get(&Symbol::new(env, "Count"))
-        .unwrap_or(0)
+        .unwrap_or(0);
+    extend_instance_ttl(env);
+    count
 }
 
 pub fn set_proposal(env: &Env, id: u32, proposal: &Proposal) {

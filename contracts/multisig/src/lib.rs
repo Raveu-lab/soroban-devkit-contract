@@ -126,9 +126,58 @@ impl MultisigContract {
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
-        Vec,
+        testutils::storage::Instance as _, testutils::storage::Persistent as _,
+        testutils::Address as _, testutils::Ledger as _, Env, Vec,
     };
+
+    #[test]
+    fn test_initialize_extends_the_instance_ttl() {
+        // Same class of gap already fixed in oracle/access-control/token:
+        // Signers/Threshold/Count live in instance storage. Losing the
+        // instance to archival would make every function inoperable
+        // (require_signer reads Signers on every proposal/approval/
+        // execution), not just one proposal.
+        let env = Env::default();
+        env.mock_all_auths();
+        let (_signers, contract_id) = setup(&env, 3, 2);
+
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (env.storage().instance().get_ttl(), env.storage().max_ttl())
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected initialize to extend the instance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_propose_refreshes_the_instance_ttl_of_an_aging_contract() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (signers, contract_id) = setup(&env, 3, 2);
+        let client = MultisigContractClient::new(&env, &contract_id);
+
+        let initial_ttl = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before_write < initial_ttl,
+            "sanity check: instance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        let token = Address::generate(&env);
+        let recipient = Address::generate(&env);
+        client.propose(&signers.get(0).unwrap(), &recipient, &1_000_000, &token);
+
+        let ttl_after_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after_write > ttl_before_write,
+            "propose() (which reads Signers via require_signer) should refresh the instance TTL too"
+        );
+    }
 
     fn setup(env: &Env, n: u32, threshold: u32) -> (Vec<Address>, Address) {
         let contract_id = env.register(MultisigContract, ());

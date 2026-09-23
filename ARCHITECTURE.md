@@ -104,7 +104,7 @@ A complete SEP-41 compliant fungible token.
 - Every state-changing function (`mint`, `transfer`, `transfer_from`, `burn`, `clawback`, `approve`) rejects `amount <= 0` before touching storage. Without this, a negative amount would flip the arithmetic's direction — e.g. `transfer`'s `from_balance - amount` becomes an *increase* and `to_balance + amount` becomes a *decrease* for a negative `amount`, letting a zero-balance caller mint themselves funds out of thin air while draining the recipient, fully self-authorized (`from.require_auth()` only proves the caller controls `from`, not that `amount` is sane). Found and fixed after `amount <= 0` guards already existed in `escrow`/`vesting` but were missing here, in the contract everything else's `TokenClient` calls into.
 - `get_balance`/`set_balance` extend each balance entry's persistent-storage TTL (`extend_balance_ttl` in `storage.rs`), and `set_admin`/`get_admin` extend the whole contract **instance's** TTL (`extend_instance_ttl`) — this contract had *no* TTL management at all before this fix, unlike every other contract in this repo. The persistent-entry gap is the most consequential version of the pattern found so far: every holder's balance, not just one admin-controlled entry, was at risk of archival from disuse.
 
-**Contracts with instance-storage TTL management so far:** `oracle`, `access-control`, `token`. Still needed: `multisig`, `upgradeable` (both store admin-equivalent data — `Signers`/`Threshold` and `Admin` respectively — in instance storage with no TTL extension yet).
+**Contracts with instance-storage TTL management so far:** `oracle`, `access-control`, `token`, `multisig`. Still needed: `upgradeable` (stores `Admin`/`Version` in instance storage with no TTL extension yet).
 
 **Storage keys:**
 ```
@@ -182,6 +182,8 @@ execute(proposal_id)    ← callable once approvals >= threshold
 `initialize()` rejects a `signers` list containing the same address twice. `count_approvals()` sums one approval per entry in the signers list (not per unique address), so a duplicate would let that one signer's single approval count twice toward the threshold — silently weakening the M-of-N guarantee.
 
 `propose()` rejects `amount <= 0`. `execute()` calls `token.transfer(contract, to, proposal.amount)` through `TokenInterface`, which works against any SEP-41-shaped token per the note below — not guaranteed to reject a negative amount itself (this repo's own `token` contract now does, but that's a property of that specific contract, not something `multisig` can rely on for an arbitrary token address a proposer names). Validated at `propose()` so a negative-amount proposal can't get M signers' approval in the first place.
+
+Every instance-storage accessor (`set_signers`/`get_signers`, `set_threshold`/`get_threshold`, `set_proposal_count`/`get_proposal_count`) extends the whole contract **instance's** TTL (`extend_instance_ttl` in `storage.rs`), same as `oracle`/`access-control`/`token`. `require_signer` reads `Signers` on every `propose`/`approve`/`execute` call, so losing the instance to archival would make the whole contract inoperable, not just one proposal.
 
 Both `Proposal(id)` and `Approval(id, signer)` extend their persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_persistent_ttl` in `storage.rs`, generic over the key type — same helper shape as `dao-voting`'s) — same TTL-archival gap fixed in `oracle`/`access-control`/`dao-voting`/`escrow`, applied here across both key shapes this contract has.
 
