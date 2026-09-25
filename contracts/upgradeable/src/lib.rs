@@ -74,7 +74,64 @@ impl UpgradeableContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env};
+    use soroban_sdk::{
+        testutils::storage::Instance as _, testutils::Address as _, testutils::Ledger as _, Env,
+    };
+
+    #[test]
+    fn test_initialize_extends_the_instance_ttl() {
+        // The most severe version of this class of bug found in this repo
+        // yet: this contract exists specifically to be upgraded to fix
+        // bugs. If Admin/Version get archived, upgrade()/migrate() (both
+        // admin-gated, reading Admin via require_auth) become permanently
+        // uncallable — there would be no way to ever upgrade the contract
+        // again, since the very mechanism meant to fix problems is itself
+        // the thing that broke.
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(UpgradeableContract, ());
+        let client = UpgradeableContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+
+        client.initialize(&admin);
+
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (env.storage().instance().get_ttl(), env.storage().max_ttl())
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected initialize to extend the instance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_migrate_refreshes_the_instance_ttl_of_an_aging_contract() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(UpgradeableContract, ());
+        let client = UpgradeableContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        client.initialize(&admin);
+
+        let initial_ttl = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before_write < initial_ttl,
+            "sanity check: instance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.migrate();
+
+        let ttl_after_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after_write > ttl_before_write,
+            "migrate() (which reads the admin via require_auth) should refresh the instance TTL too"
+        );
+    }
 
     #[test]
     fn test_initialize_sets_version_1() {

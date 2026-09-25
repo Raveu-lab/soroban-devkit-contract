@@ -104,7 +104,7 @@ A complete SEP-41 compliant fungible token.
 - Every state-changing function (`mint`, `transfer`, `transfer_from`, `burn`, `clawback`, `approve`) rejects `amount <= 0` before touching storage. Without this, a negative amount would flip the arithmetic's direction — e.g. `transfer`'s `from_balance - amount` becomes an *increase* and `to_balance + amount` becomes a *decrease* for a negative `amount`, letting a zero-balance caller mint themselves funds out of thin air while draining the recipient, fully self-authorized (`from.require_auth()` only proves the caller controls `from`, not that `amount` is sane). Found and fixed after `amount <= 0` guards already existed in `escrow`/`vesting` but were missing here, in the contract everything else's `TokenClient` calls into.
 - `get_balance`/`set_balance` extend each balance entry's persistent-storage TTL (`extend_balance_ttl` in `storage.rs`), and `set_admin`/`get_admin` extend the whole contract **instance's** TTL (`extend_instance_ttl`) — this contract had *no* TTL management at all before this fix, unlike every other contract in this repo. The persistent-entry gap is the most consequential version of the pattern found so far: every holder's balance, not just one admin-controlled entry, was at risk of archival from disuse.
 
-**Contracts with instance-storage TTL management so far:** `oracle`, `access-control`, `token`, `multisig`. Still needed: `upgradeable` (stores `Admin`/`Version` in instance storage with no TTL extension yet).
+**Contracts with instance-storage TTL management:** `oracle`, `access-control`, `token`, `multisig`, `upgradeable` — all five of this repo's instance-storage-using contracts now manage it (`dao-voting`/`escrow`/`event-rich`/`vesting` don't use instance storage at all, only persistent, which was already covered).
 
 **Storage keys:**
 ```
@@ -147,9 +147,10 @@ deploy v1 contract
 ```
 
 **Key design decisions:**
-- `version: u32` stored in persistent storage, incremented on each migration
+- `version: u32` stored in instance storage (not persistent — corrected here; the doc previously said persistent, which didn't match `storage.rs`), incremented on each migration
 - Migration function is a no-op by default — contributors implement the actual state transformation
 - Upgrade is behind an admin check using the `access-control` contract pattern
+- `set_admin`/`get_admin` and `set_version`/`get_version` all extend the whole contract **instance's** TTL (`extend_instance_ttl` in `storage.rs`), same pattern as `oracle`/`access-control`/`token`/`multisig` — the most severe version of this bug found in this repo: `upgrade()`/`migrate()` are the *only* mechanism to ever fix a deployed contract, and both are admin-gated. Losing the instance to archival would make them permanently uncallable, with no way to recover. This was the last of this repo's six contracts still needing instance-storage TTL management — all now have it.
 
 ---
 
