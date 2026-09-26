@@ -104,7 +104,7 @@ A complete SEP-41 compliant fungible token.
 - Every state-changing function (`mint`, `transfer`, `transfer_from`, `burn`, `clawback`, `approve`) rejects `amount <= 0` before touching storage. Without this, a negative amount would flip the arithmetic's direction — e.g. `transfer`'s `from_balance - amount` becomes an *increase* and `to_balance + amount` becomes a *decrease* for a negative `amount`, letting a zero-balance caller mint themselves funds out of thin air while draining the recipient, fully self-authorized (`from.require_auth()` only proves the caller controls `from`, not that `amount` is sane). Found and fixed after `amount <= 0` guards already existed in `escrow`/`vesting` but were missing here, in the contract everything else's `TokenClient` calls into.
 - `get_balance`/`set_balance` extend each balance entry's persistent-storage TTL (`extend_balance_ttl` in `storage.rs`), and `set_admin`/`get_admin` extend the whole contract **instance's** TTL (`extend_instance_ttl`) — this contract had *no* TTL management at all before this fix, unlike every other contract in this repo. The persistent-entry gap is the most consequential version of the pattern found so far: every holder's balance, not just one admin-controlled entry, was at risk of archival from disuse.
 
-**Contracts with instance-storage TTL management:** `oracle`, `access-control`, `token`, `multisig`, `upgradeable` — all five of this repo's instance-storage-using contracts now manage it (`dao-voting`/`escrow`/`event-rich`/`vesting` don't use instance storage at all, only persistent, which was already covered).
+**Contracts with instance-storage TTL management:** `oracle`, `access-control`, `token`, `multisig`, `upgradeable`, `dao-voting`, `escrow`, `vesting` — all eight of this repo's instance-storage-using contracts now manage it (`event-rich` genuinely has no storage of any kind — it only emits events). An earlier version of this note claimed `dao-voting`/`escrow`/`vesting` didn't use instance storage at all; that was wrong — a single-line `grep "storage().instance()"` audit missed all three because their `Count` field's accessor splits `.instance()` onto its own line. All three had this exact TTL gap on their `Count` field, unmanaged, until fixed here — re-audited with `grep -c "\.instance()"` (no line-anchoring) to catch the multi-line case.
 
 **Storage keys:**
 ```
@@ -230,6 +230,7 @@ deposit(depositor, recipient, arbiter, token, amount, release_time) → escrow_i
 - Like `multisig`, cross-contract token transfers go through a minimal `#[contractclient]`-declared `TokenInterface` (`token_client.rs`) rather than depending on `soroban-token`'s crate — works against any SEP-41-shaped token, not just this repo's own.
 - Once a dispute is raised, the normal depositor/timelock/recipient rules for `release`/`refund` no longer apply — only the arbiter can resolve it, in either direction.
 - `set_escrow`/`get_escrow` extend the entry's persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_escrow_ttl` in `storage.rs`) — same TTL-archival gap fixed in `oracle`/`access-control`/`dao-voting`, applied here.
+- `set_escrow_count`/`get_escrow_count` also extend the whole contract **instance's** TTL — `Count` lives in instance storage, unmanaged until this was found and fixed. Losing the instance to archival would make the whole contract inoperable, not just reset the counter.
 - `release` and `refund` are only valid from `Active` (or `Disputed`, for the arbiter path) — both are terminal once `Released` or `Refunded`.
 
 ---
@@ -273,7 +274,8 @@ create_vesting(depositor, beneficiary, token, total_amount,
 - Like `escrow`/`multisig`, cross-contract token transfers go through a minimal `#[contractclient]`-declared `TokenInterface` — works against any SEP-41-shaped token.
 - `revoke` settles the schedule in one transaction: it pays out earned-but-unclaimed tokens to the beneficiary (they keep what they've earned) and refunds only the unvested portion to the depositor — total distributed always equals `total_amount`.
 - `#[allow(clippy::too_many_arguments)]` on `create_vesting`: 7 real parameters plus `env` is a genuine business requirement here, not something worth hiding behind an options struct just to satisfy the lint.
-- `VestingSchedule(id)` extends its persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_schedule_ttl` in `storage.rs`) — the last of the six contracts to get this fix (`oracle`/`access-control`/`dao-voting`/`escrow`/`multisig` already had it); every persistent-storage contract in this repo now manages its own TTL.
+- `VestingSchedule(id)` extends its persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_schedule_ttl` in `storage.rs`) — the last of the contracts to get this fix; every persistent-storage entry type in this repo now manages its own TTL.
+- `set_schedule_count`/`get_schedule_count` also extend the whole contract **instance's** TTL — `Count` lives in instance storage, unmanaged until this was found and fixed (same gap as `escrow`/`dao-voting`'s `Count` fields). Losing the instance to archival would make the whole contract inoperable, not just reset the counter.
 
 ---
 
@@ -335,6 +337,7 @@ propose(proposer, description, voting_duration) → proposal_id
 - `vote()` and `finalize()` both `require_auth()` the actual caller — for `finalize()` this isn't an authorization gate (anyone may call it), it's just so the caller's identity is authenticated for the emitted event.
 - A tie counts as `Rejected`, not `Passed` — `for_votes > against_votes` is a strict inequality.
 - `Proposal(id)` and `Voted(id, addr)` both extend their persistent-storage TTL toward `env.storage().max_ttl()` on every write and successful read (`extend_persistent_ttl` in `storage.rs`, generic over the key type this time rather than one function per key shape like `oracle`/`access-control`) — same TTL-archival gap fixed there, applied here across both key shapes this contract has.
+- `set_proposal_count`/`get_proposal_count` also extend the whole contract **instance's** TTL — `Count` lives in instance storage, unmanaged until this was found and fixed (same gap as `escrow`/`vesting`'s `Count` fields). Losing the instance to archival would make the whole contract inoperable, not just reset the counter.
 
 ---
 

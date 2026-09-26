@@ -186,8 +186,8 @@ impl VestingContract {
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
-        String,
+        testutils::storage::Instance as _, testutils::storage::Persistent as _,
+        testutils::Address as _, testutils::Ledger as _, Env, String,
     };
     use soroban_token::{TokenContract, TokenContractClient};
 
@@ -242,6 +242,58 @@ mod tests {
             &100,
             &1_000,
         )
+    }
+
+    #[test]
+    fn test_create_vesting_extends_the_instance_ttl() {
+        // A gap missed by the earlier audit of this repo's instance-storage
+        // contracts: Count lives in instance storage, unmanaged, same as
+        // the already-fixed oracle/access-control/token/multisig/
+        // upgradeable/dao-voting/escrow. Losing the instance to archival
+        // would make the whole contract inoperable, not just reset the
+        // schedule counter.
+        let env = Env::default();
+        let s = setup(&env);
+        create_default(&s);
+
+        let (ttl, max_ttl) = env.as_contract(&s.contract_id, || {
+            (env.storage().instance().get_ttl(), env.storage().max_ttl())
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected create_vesting to extend the instance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_create_vesting_refreshes_the_instance_ttl_of_an_aging_contract() {
+        let env = Env::default();
+        let s = setup(&env);
+        create_default(&s);
+
+        let initial_ttl = env.as_contract(&s.contract_id, || env.storage().instance().get_ttl());
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_write =
+            env.as_contract(&s.contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before_write < initial_ttl,
+            "sanity check: instance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        // create_default() spends the depositor's whole starting balance —
+        // top it up so the second call has funds to transfer.
+        s.token_client.mint(&s.depositor, &1_000_000);
+        create_default(&s);
+
+        let ttl_after_write =
+            env.as_contract(&s.contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after_write > ttl_before_write,
+            "create_vesting() (which reads/writes the schedule Count) should refresh the instance TTL too"
+        );
     }
 
     #[test]

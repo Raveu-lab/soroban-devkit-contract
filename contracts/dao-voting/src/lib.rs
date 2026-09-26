@@ -116,8 +116,68 @@ impl DaoVotingContract {
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
+        testutils::storage::Instance as _, testutils::storage::Persistent as _,
+        testutils::Address as _, testutils::Ledger as _, Env,
     };
+
+    #[test]
+    fn test_propose_extends_the_instance_ttl() {
+        // A gap missed by the earlier audit of this repo's instance-storage
+        // contracts: Count lives in instance storage, unmanaged, same as
+        // the already-fixed oracle/access-control/token/multisig/
+        // upgradeable. Losing the instance to archival would make the
+        // whole contract inoperable (every function needs the instance
+        // live to execute at all), not just reset the proposal counter.
+        let env = Env::default();
+        let (proposer, client) = setup(&env);
+
+        client.propose(
+            &proposer,
+            &String::from_str(&env, "Raise the fee cap"),
+            &1_000,
+        );
+
+        let contract_id = client.address.clone();
+        let (ttl, max_ttl) = env.as_contract(&contract_id, || {
+            (env.storage().instance().get_ttl(), env.storage().max_ttl())
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected propose to extend the instance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_propose_refreshes_the_instance_ttl_of_an_aging_contract() {
+        let env = Env::default();
+        let (proposer, client) = setup(&env);
+        let contract_id = client.address.clone();
+
+        client.propose(&proposer, &String::from_str(&env, "First proposal"), &1_000);
+
+        let initial_ttl = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before_write < initial_ttl,
+            "sanity check: instance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        client.propose(
+            &proposer,
+            &String::from_str(&env, "Second proposal"),
+            &1_000,
+        );
+
+        let ttl_after_write = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after_write > ttl_before_write,
+            "propose() (which reads/writes the proposal Count) should refresh the instance TTL too"
+        );
+    }
 
     fn setup(env: &Env) -> (Address, DaoVotingContractClient<'_>) {
         env.mock_all_auths();

@@ -21,17 +21,33 @@ fn extend_persistent_ttl<K: IntoVal<Env, Val>>(env: &Env, key: &K) {
         .extend_ttl(key, max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
 }
 
+/// Extends the whole contract instance's TTL — holds Count. Missed by the
+/// earlier audit of this repo's instance-storage contracts (a single-line
+/// grep for "storage().instance()" didn't match this file's multi-line
+/// formatting). Losing the instance to archival would make the whole
+/// contract inoperable, not just reset the proposal counter.
+fn extend_instance_ttl(env: &Env) {
+    let max_ttl = env.storage().max_ttl();
+    env.storage()
+        .instance()
+        .extend_ttl(max_ttl.saturating_sub(TTL_EXTEND_BUFFER), max_ttl);
+}
+
 pub fn set_proposal_count(env: &Env, count: u32) {
     env.storage()
         .instance()
         .set(&Symbol::new(env, "Count"), &count);
+    extend_instance_ttl(env);
 }
 
 pub fn get_proposal_count(env: &Env) -> u32 {
-    env.storage()
+    let count = env
+        .storage()
         .instance()
         .get(&Symbol::new(env, "Count"))
-        .unwrap_or(0)
+        .unwrap_or(0);
+    extend_instance_ttl(env);
+    count
 }
 
 pub fn set_proposal(env: &Env, id: u32, proposal: &Proposal) {

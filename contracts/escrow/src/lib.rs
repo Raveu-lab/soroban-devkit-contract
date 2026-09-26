@@ -168,8 +168,8 @@ impl EscrowContract {
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::storage::Persistent as _, testutils::Address as _, testutils::Ledger as _, Env,
-        String,
+        testutils::storage::Instance as _, testutils::storage::Persistent as _,
+        testutils::Address as _, testutils::Ledger as _, Env, String,
     };
     use soroban_token::{TokenContract, TokenContractClient};
 
@@ -214,6 +214,77 @@ mod tests {
             recipient,
             arbiter,
         }
+    }
+
+    #[test]
+    fn test_deposit_extends_the_instance_ttl() {
+        // A gap missed by the earlier audit of this repo's instance-storage
+        // contracts: Count lives in instance storage, unmanaged, same as
+        // the already-fixed oracle/access-control/token/multisig/
+        // upgradeable/dao-voting. Losing the instance to archival would
+        // make the whole contract inoperable, not just reset the counter.
+        let env = Env::default();
+        let s = setup(&env);
+
+        s.client.deposit(
+            &s.depositor,
+            &s.recipient,
+            &s.arbiter,
+            &s.token_id,
+            &400_000,
+            &1_000,
+        );
+
+        let (ttl, max_ttl) = env.as_contract(&s.contract_id, || {
+            (env.storage().instance().get_ttl(), env.storage().max_ttl())
+        });
+        assert!(
+            ttl > max_ttl / 2,
+            "expected deposit to extend the instance TTL close to max_ttl ({max_ttl}), got {ttl}"
+        );
+    }
+
+    #[test]
+    fn test_deposit_refreshes_the_instance_ttl_of_an_aging_contract() {
+        let env = Env::default();
+        let s = setup(&env);
+
+        s.client.deposit(
+            &s.depositor,
+            &s.recipient,
+            &s.arbiter,
+            &s.token_id,
+            &100_000,
+            &1_000,
+        );
+
+        let initial_ttl = env.as_contract(&s.contract_id, || env.storage().instance().get_ttl());
+
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before_write =
+            env.as_contract(&s.contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before_write < initial_ttl,
+            "sanity check: instance TTL should have visibly decreased after advancing the ledger"
+        );
+
+        s.client.deposit(
+            &s.depositor,
+            &s.recipient,
+            &s.arbiter,
+            &s.token_id,
+            &100_000,
+            &1_000,
+        );
+
+        let ttl_after_write =
+            env.as_contract(&s.contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after_write > ttl_before_write,
+            "deposit() (which reads/writes the escrow Count) should refresh the instance TTL too"
+        );
     }
 
     #[test]
