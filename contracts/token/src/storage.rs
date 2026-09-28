@@ -3,6 +3,7 @@
 //! All reads and writes to contract storage go through this module.
 //! Never call `env.storage()` directly in `lib.rs`.
 
+use crate::types::AllowanceValue;
 use soroban_sdk::{Address, Env, String, Symbol};
 
 const ADMIN_KEY: &str = "Admin";
@@ -79,22 +80,42 @@ pub fn set_balance(env: &Env, addr: &Address, amount: i128) {
     extend_balance_ttl(env, addr);
 }
 
+/// Returns the remaining allowance, or 0 if it was never set or its
+/// expiration ledger has passed (an allowance is valid through its
+/// expiration ledger, inclusive).
 pub fn get_allowance(env: &Env, from: &Address, spender: &Address) -> i128 {
     let key = (from.clone(), spender.clone());
-    env.storage().temporary().get(&key).unwrap_or(0)
+    match env.storage().temporary().get::<_, AllowanceValue>(&key) {
+        Some(v) if v.expiration_ledger >= env.ledger().sequence() => v.amount,
+        _ => 0,
+    }
 }
 
 pub fn set_allowance(env: &Env, from: &Address, spender: &Address, amount: i128, expiry: u32) {
     let key = (from.clone(), spender.clone());
-    env.storage().temporary().set(&key, &amount);
-    env.storage().temporary().extend_ttl(&key, expiry, expiry);
+    env.storage().temporary().set(
+        &key,
+        &AllowanceValue {
+            amount,
+            expiration_ledger: expiry,
+        },
+    );
+    // Keep the entry alive at least until expiry, capped at the network max.
+    // Outliving it is harmless — get_allowance() checks expiration_ledger.
+    let ledgers = expiry
+        .saturating_sub(env.ledger().sequence())
+        .min(env.storage().max_ttl());
+    env.storage().temporary().extend_ttl(&key, ledgers, ledgers);
 }
 
-/// Update an existing allowance's remaining amount without touching its TTL.
-/// Used by `transfer_from` to decrement the allowance on spend.
+/// Update an existing allowance's remaining amount, keeping its expiration
+/// ledger and TTL. Used by `transfer_from` to decrement the allowance on spend.
 pub fn set_allowance_amount(env: &Env, from: &Address, spender: &Address, amount: i128) {
     let key = (from.clone(), spender.clone());
-    env.storage().temporary().set(&key, &amount);
+    if let Some(mut value) = env.storage().temporary().get::<_, AllowanceValue>(&key) {
+        value.amount = amount;
+        env.storage().temporary().set(&key, &value);
+    }
 }
 
 pub fn set_metadata(env: &Env, name: String, symbol: String, decimals: u32) {

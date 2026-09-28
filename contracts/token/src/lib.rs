@@ -84,12 +84,18 @@ impl TokenContract {
     }
 
     /// Approve a spender to transfer up to `amount` tokens on behalf of `from`.
-    /// Requires auth from `from`. Emits an `approve` event on success.
+    /// Requires auth from `from`. `expiry_ledger` is an absolute ledger
+    /// sequence (inclusive) and must not be in the past unless `amount` is 0;
+    /// approving 0 revokes an existing allowance. Emits an `approve` event.
     pub fn approve(env: Env, from: Address, spender: Address, amount: i128, expiry_ledger: u32) {
         from.require_auth();
 
-        if amount <= 0 {
+        // Zero is allowed: approve(0) is how SEP-41 revokes an allowance.
+        if amount < 0 {
             panic!("amount must be positive");
+        }
+        if amount > 0 && expiry_ledger < env.ledger().sequence() {
+            panic!("expiration ledger is in the past");
         }
 
         storage::set_allowance(&env, &from, &spender, amount, expiry_ledger);
@@ -202,6 +208,91 @@ mod tests {
         testutils::storage::Instance as _, testutils::storage::Persistent as _,
         testutils::Address as _, testutils::Ledger as _, Env,
     };
+
+    fn allowance_setup(env: &Env) -> (TokenContractClient<'_>, Address, Address) {
+        env.mock_all_auths();
+        let contract_id = env.register(TokenContract, ());
+        let client = TokenContractClient::new(env, &contract_id);
+        let admin = Address::generate(env);
+        client.initialize(
+            &admin,
+            &String::from_str(env, "DevKit Token"),
+            &String::from_str(env, "DKT"),
+            &7,
+            &false,
+        );
+        let alice = Address::generate(env);
+        let spender = Address::generate(env);
+        client.mint(&alice, &1_000_000);
+        (client, alice, spender)
+    }
+
+    #[test]
+    fn test_allowance_is_still_valid_on_its_expiration_ledger() {
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        env.ledger().set_sequence_number(100);
+
+        client.approve(&alice, &spender, &500, &200);
+
+        env.ledger().set_sequence_number(200);
+        assert_eq!(client.allowance(&alice, &spender), 500);
+    }
+
+    #[test]
+    fn test_allowance_expires_after_its_expiration_ledger() {
+        // expiry_ledger is an absolute ledger sequence (SEP-41), but
+        // set_allowance passed it straight to extend_ttl(), which takes a
+        // *relative* TTL — so an allowance approved at ledger 100 with
+        // expiry 200 lived ~200 ledgers past its stated expiry (until
+        // ledger 300, or the default TTL if larger) instead of expiring.
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        env.ledger().set_sequence_number(100);
+
+        client.approve(&alice, &spender, &500, &200);
+
+        env.ledger().set_sequence_number(201);
+        assert_eq!(client.allowance(&alice, &spender), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient allowance")]
+    fn test_transfer_from_fails_after_the_allowance_expires() {
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        let bob = Address::generate(&env);
+        env.ledger().set_sequence_number(100);
+        client.approve(&alice, &spender, &500, &200);
+
+        env.ledger().set_sequence_number(201);
+        client.transfer_from(&spender, &alice, &bob, &100);
+    }
+
+    #[test]
+    #[should_panic(expected = "expiration ledger is in the past")]
+    fn test_approve_rejects_an_expiration_ledger_in_the_past() {
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        env.ledger().set_sequence_number(500);
+
+        client.approve(&alice, &spender, &500, &499);
+    }
+
+    #[test]
+    fn test_approve_zero_revokes_an_existing_allowance() {
+        // SEP-41 allows approve(0) as the way to revoke an allowance; the
+        // blanket `amount <= 0` guard made that impossible — the only
+        // option was approving some tiny nonzero amount instead.
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        env.ledger().set_sequence_number(100);
+        client.approve(&alice, &spender, &500, &200);
+
+        client.approve(&alice, &spender, &0, &200);
+
+        assert_eq!(client.allowance(&alice, &spender), 0);
+    }
 
     #[test]
     fn test_initialize_extends_the_instance_ttl() {

@@ -117,7 +117,24 @@
               },
               "durability": "temporary",
               "val": {
-                "i128": "300000"
+                "map": [
+                  {
+                    "key": {
+                      "symbol": "amount"
+                    },
+                    "val": {
+                      "i128": "300000"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "expiration_ledger"
+                    },
+                    "val": {
+                      "u32": 1000
+                    }
+                  }
+                ]
               }
             }
           },
