@@ -12,6 +12,10 @@ body:
         - upgradeable
         - multisig
         - event-rich
+        - escrow
+        - vesting
+        - oracle
+        - dao-voting
     validations:
       required: true
 
