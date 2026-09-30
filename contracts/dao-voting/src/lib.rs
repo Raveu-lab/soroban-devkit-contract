@@ -34,9 +34,15 @@ pub struct DaoVotingContract;
 #[contractimpl]
 impl DaoVotingContract {
     /// Create a new proposal. Anyone can propose. `voting_duration` is
-    /// seconds from now until the deadline. Returns the new proposal's ID.
+    /// seconds from now until the deadline and must be positive — a zero
+    /// duration would create a proposal nobody could ever vote on.
+    /// Returns the new proposal's ID.
     pub fn propose(env: Env, proposer: Address, description: String, voting_duration: u64) -> u32 {
         proposer.require_auth();
+
+        if voting_duration == 0 {
+            panic!("voting_duration must be positive");
+        }
 
         let id = storage::get_proposal_count(&env);
         let deadline = env.ledger().timestamp() + voting_duration;
@@ -276,6 +282,19 @@ mod tests {
             ttl > max_ttl / 2,
             "expected vote() to extend the vote record's TTL close to max_ttl ({max_ttl}), got {ttl}"
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "voting_duration must be positive")]
+    fn test_propose_rejects_zero_voting_duration() {
+        // vesting's create_vesting already rejects a zero duration with
+        // this exact wording — propose() had no equivalent guard, so a
+        // proposal with voting_duration=0 was created with deadline=now,
+        // silently un-votable by anyone, forever (vote() panics "voting
+        // has closed" on the very first call).
+        let env = Env::default();
+        let (proposer, client) = setup(&env);
+        client.propose(&proposer, &String::from_str(&env, "Proposal"), &0);
     }
 
     #[test]
