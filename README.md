@@ -264,6 +264,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and how to pick up
 - [ ] Property-based fuzz tests for all contracts using `cargo-fuzz`
 - [ ] Formal verification annotations using Komet
 
+See [CHANGELOG.md](CHANGELOG.md) for what's actually shipped so far, and [ADDRESSES.md](ADDRESSES.md) for deployment history.
+
 ---
 
 ## License
