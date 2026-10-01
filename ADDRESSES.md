@@ -61,5 +61,5 @@ Not yet deployed.
   - `vesting`: `Count` (instance storage) now gets TTL-managed.
 
   `access-control` was re-initialized with the deployer as `super_admin`; `upgradeable` with the deployer as `admin`; `token` with the deployer as `admin` (name "DevKit Token", symbol "DKT", decimals 7, clawback disabled); `multisig` with the deployer as the sole signer and threshold 1. `dao-voting`/`escrow`/`vesting` have no `initialize()` — their `Count` starts at 0 on first use. All four initializations and a handful of read calls were verified live against testnet before updating this file. The old addresses listed in the Notes above (and the ones these directly replace in the table) still work for reads but don't carry today's fixes.
-- The `soroban-devkit-core` integration tests read `deployments.json` to resolve IDs at test time
+- `soroban-devkit-core`'s live-network tests (`tests/simulator.test.ts`, run against real `testnet`) use hardcoded dummy contract IDs and public keys to exercise the real RPC endpoint — they don't read this file at all, despite an earlier version of this note claiming otherwise. Confirmed by searching `soroban-devkit-core`'s `tests/` and `src/` for any reference to `deployments.json`: none found.
 - Testnet state resets periodically — check [status.stellar.org](https://status.stellar.org) if a contract ID stops responding
