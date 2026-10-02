@@ -200,6 +200,10 @@ A minimal contract with no real business logic. Its sole purpose is to emit even
 - `emit_strings()` — emits Symbol, String, Bytes
 - `emit_collections()` — emits Vec, Map
 - `emit_address(addr: Address)` — emits an Address type
+- `emit_wider_numbers()` — emits u256, i256
+- `emit_time_types()` — emits Timepoint, Duration
+
+`emit_wider_numbers`/`emit_time_types` were missing until now — `soroban-devkit-core`'s `EventDecoder` gained real support for `scvU256`/`scvI256`/`scvTimepoint`/`scvDuration` in earlier sessions, but this contract's own "every XDR ScVal type" coverage was never updated to match, despite that being its entire stated purpose.
 
 ---
 

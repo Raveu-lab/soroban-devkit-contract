@@ -11,7 +11,10 @@
 #![no_std]
 #![allow(deprecated)]
 
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
+use soroban_sdk::{
+    contract, contractimpl, Address, Bytes, Duration, Env, Map, String, Symbol, Timepoint, Vec,
+    I256, U256,
+};
 
 #[contract]
 pub struct EventRichContract;
@@ -77,6 +80,30 @@ impl EventRichContract {
         env.events()
             .publish((Symbol::new(&env, "address_event"), addr.clone()), addr);
     }
+
+    /// Emit events using 256-bit integers
+    pub fn emit_wider_numbers(env: Env) {
+        env.events().publish(
+            (Symbol::new(&env, "u256_event"),),
+            U256::from_u32(&env, u32::MAX).add(&U256::from_u32(&env, 1)),
+        );
+        env.events().publish(
+            (Symbol::new(&env, "i256_event"),),
+            I256::from_i32(&env, i32::MIN).sub(&I256::from_i32(&env, 1)),
+        );
+    }
+
+    /// Emit events using Timepoint and Duration
+    pub fn emit_time_types(env: Env) {
+        env.events().publish(
+            (Symbol::new(&env, "timepoint_event"),),
+            Timepoint::from_unix(&env, 1_700_000_000),
+        );
+        env.events().publish(
+            (Symbol::new(&env, "duration_event"),),
+            Duration::from_seconds(&env, 3600),
+        );
+    }
 }
 
 #[cfg(test)]
@@ -98,5 +125,25 @@ mod tests {
 
         let addr = Address::generate(&env);
         client.emit_address(&addr);
+    }
+
+    #[test]
+    fn test_emit_wider_numbers() {
+        // This contract's whole purpose is exercising every XDR ScVal type
+        // soroban-devkit-core's EventDecoder can decode — it was missing
+        // scvU256/scvI256 even after the decoder gained support for them.
+        let env = Env::default();
+        let contract_id = env.register(EventRichContract, ());
+        let client = EventRichContractClient::new(&env, &contract_id);
+        client.emit_wider_numbers();
+    }
+
+    #[test]
+    fn test_emit_time_types() {
+        // Same gap as above, for scvTimepoint/scvDuration.
+        let env = Env::default();
+        let contract_id = env.register(EventRichContract, ());
+        let client = EventRichContractClient::new(&env, &contract_id);
+        client.emit_time_types();
     }
 }
