@@ -8,7 +8,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Known issues
 
-- Every contract defines a typed error enum (`errors.rs`, a stable `u32` discriminant per variant) but none of them are actually used anywhere in `lib.rs` — confirmed live by grepping every contract's `lib.rs` for its own error type: zero usages, 49 raw `panic!("...")` calls across the 8 contracts that panic at all. Callers get a string message, not a typed, stable error code they can match on.
+- Every contract defines a typed error enum (`errors.rs`, a stable `u32` discriminant per variant) but most of them still aren't used in `lib.rs` — `vesting` was fixed in [#21](https://github.com/Raveu-lab/soroban-devkit-contract/pull/21) (thanks [@de-authority](https://github.com/de-authority)); `token`, `access-control`, `upgradeable`, `multisig`, `oracle`, `dao-voting`, and `escrow` still raise raw `panic!("...")` strings instead of a typed, matchable error code.
 
 ### Added
 
@@ -34,6 +34,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `token.approve()`'s `expiry_ledger` (an absolute ledger sequence) was passed straight into `extend_ttl()`'s relative-count parameter, so an allowance silently outlived its stated expiration. `approve(0)` — SEP-41's way to revoke an allowance — was also rejected by the blanket positive-amount guard.
 - `dao-voting.propose()` had no guard against `voting_duration == 0`, unlike `vesting`'s equivalent field — a proposal with `voting_duration=0` got `deadline = now`, silently un-votable by anyone, forever.
 - The bug-report issue template's "Which contract?" dropdown only listed 5 of 9 contracts.
+- `event-rich` never emitted `scvU256`/`scvI256`/`scvTimepoint`/`scvDuration` events, even after `soroban-devkit-core`'s decoder gained real support for all four — despite this contract's entire purpose being coverage of every XDR type the decoder can handle.
+- `vesting`'s panic paths raised raw strings instead of its own typed `VestingError` ([#21](https://github.com/Raveu-lab/soroban-devkit-contract/pull/21), external contribution — thanks [@de-authority](https://github.com/de-authority)).
 
 ### Changed
 
