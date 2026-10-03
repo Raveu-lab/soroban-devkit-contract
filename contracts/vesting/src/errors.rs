@@ -15,4 +15,7 @@ pub enum VestingError {
     Unauthorized = 2,
     /// The schedule has already been revoked
     AlreadyRevoked = 3,
+    InvalidTotalAmount = 4,
+    InvalidVestingDuration = 5,
+    NothingToClaim = 6,
 }
