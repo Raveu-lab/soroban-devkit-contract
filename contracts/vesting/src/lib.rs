@@ -18,7 +18,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env};
 
 mod errors;
 mod events;
@@ -52,10 +52,10 @@ impl VestingContract {
     ) -> u32 {
         depositor.require_auth();
         if total_amount <= 0 {
-            panic!("total_amount must be positive");
+            panic_with_error!(&env, VestingError::InvalidTotalAmount);
         }
         if vesting_duration == 0 {
-            panic!("vesting_duration must be positive");
+            panic_with_error!(&env, VestingError::InvalidVestingDuration)
         }
 
         let token_client = TokenClient::new(&env, &token);
@@ -86,16 +86,16 @@ impl VestingContract {
         let mut schedule = storage::get_schedule(&env, id);
 
         if caller != schedule.beneficiary {
-            panic!("only the beneficiary can claim");
+            panic_with_error!(&env, VestingError::Unauthorized)
         }
         if schedule.revoked {
-            panic!("schedule has been revoked");
+            panic_with_error!(&env, VestingError::AlreadyRevoked)
         }
 
         let vested = Self::vested_at(&schedule, env.ledger().timestamp());
         let claimable = vested - schedule.claimed_amount;
         if claimable <= 0 {
-            panic!("nothing to claim yet");
+            panic_with_error!(&env, VestingError::NothingToClaim)
         }
 
         schedule.claimed_amount += claimable;
@@ -120,10 +120,10 @@ impl VestingContract {
         let mut schedule = storage::get_schedule(&env, id);
 
         if caller != schedule.depositor {
-            panic!("only the depositor can revoke");
+            panic_with_error!(&env, VestingError::Unauthorized)
         }
         if schedule.revoked {
-            panic!("schedule already revoked");
+            panic_with_error!(&env, VestingError::AlreadyRevoked)
         }
 
         let vested = Self::vested_at(&schedule, env.ledger().timestamp());
@@ -367,7 +367,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "nothing to claim yet")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_nothing_claimable_before_cliff() {
         let env = Env::default();
         let s = setup(&env);
@@ -422,7 +422,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "only the beneficiary")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_non_beneficiary_cannot_claim() {
         let env = Env::default();
         let s = setup(&env);
@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "schedule has been revoked")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_cannot_claim_after_revoke() {
         let env = Env::default();
         let s = setup(&env);
@@ -460,7 +460,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "only the depositor")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_non_depositor_cannot_revoke() {
         let env = Env::default();
         let s = setup(&env);
@@ -470,7 +470,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "already revoked")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_cannot_revoke_twice() {
         let env = Env::default();
         let s = setup(&env);
