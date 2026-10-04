@@ -12,8 +12,8 @@
 #![allow(deprecated)]
 
 use soroban_sdk::{
-    contract, contractimpl, Address, Bytes, Duration, Env, Map, String, Symbol, Timepoint, Vec,
-    I256, U256,
+    contract, contractimpl, Address, Bytes, Duration, Env, Error, Map, String, Symbol, Timepoint,
+    Vec, I256, U256,
 };
 
 #[contract]
@@ -104,6 +104,18 @@ impl EventRichContract {
             Duration::from_seconds(&env, 3600),
         );
     }
+
+    /// Emit an event containing a contract Error value — the same shape a
+    /// real diagnostic event's topic carries for any failed invocation
+    /// (confirmed live: calling a non-existent method on a deployed
+    /// contract produces a diagnostic event whose topic is exactly this
+    /// ScVal type).
+    pub fn emit_error(env: Env) {
+        env.events().publish(
+            (Symbol::new(&env, "error_event"),),
+            Error::from_contract_error(6),
+        );
+    }
 }
 
 #[cfg(test)]
@@ -145,5 +157,15 @@ mod tests {
         let contract_id = env.register(EventRichContract, ());
         let client = EventRichContractClient::new(&env, &contract_id);
         client.emit_time_types();
+    }
+
+    #[test]
+    fn test_emit_error() {
+        // Same gap as above, for scvError — soroban-devkit-core's decoder
+        // only just gained support for it.
+        let env = Env::default();
+        let contract_id = env.register(EventRichContract, ());
+        let client = EventRichContractClient::new(&env, &contract_id);
+        client.emit_error();
     }
 }
