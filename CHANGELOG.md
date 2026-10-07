@@ -20,6 +20,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `token`: `burn` and `clawback`.
 - `oracle` — admin-published price feed with staleness checking.
 - `dao-voting` — on-chain proposal and voting, one-address-one-vote.
+- `.github/PULL_REQUEST_TEMPLATE.md` — no PR template existed in any of the three sibling repos; mirrors `CONTRIBUTING.md`'s existing "Pull Request Guidelines" as a checklist.
 
 ### Fixed
 
