@@ -35,6 +35,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `token.approve()`'s `expiry_ledger` (an absolute ledger sequence) was passed straight into `extend_ttl()`'s relative-count parameter, so an allowance silently outlived its stated expiration. `approve(0)` — SEP-41's way to revoke an allowance — was also rejected by the blanket positive-amount guard.
 - `dao-voting.propose()` had no guard against `voting_duration == 0`, unlike `vesting`'s equivalent field — a proposal with `voting_duration=0` got `deadline = now`, silently un-votable by anyone, forever.
 - The bug-report issue template's "Which contract?" dropdown only listed 5 of 9 contracts.
+- The repo had no actual `LICENSE` file — the README's badge and its "MIT — see [LICENSE](LICENSE)" line both linked to a file that didn't exist, a dead link since this repo's creation. The project claimed to be MIT-licensed and open source; there was never an actual license grant for the code, only prose about one.
 - `event-rich` never emitted `scvU256`/`scvI256`/`scvTimepoint`/`scvDuration` events, even after `soroban-devkit-core`'s decoder gained real support for all four — despite this contract's entire purpose being coverage of every XDR type the decoder can handle.
 - `vesting`'s panic paths raised raw strings instead of its own typed `VestingError` ([#21](https://github.com/Raveu-lab/soroban-devkit-contract/pull/21), external contribution — thanks [@de-authority](https://github.com/de-authority)).
 
