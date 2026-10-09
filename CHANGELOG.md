@@ -8,7 +8,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Known issues
 
-- Every contract defines a typed error enum (`errors.rs`, a stable `u32` discriminant per variant) but most of them still aren't used in `lib.rs` — `vesting` was fixed in [#21](https://github.com/Raveu-lab/soroban-devkit-contract/pull/21) (thanks [@de-authority](https://github.com/de-authority)); `token`, `access-control`, `upgradeable`, `multisig`, `oracle`, `dao-voting`, and `escrow` still raise raw `panic!("...")` strings instead of a typed, matchable error code.
+- Every contract defines a typed error enum (`errors.rs`, a stable `u32` discriminant per variant) but most of them still aren't used in `lib.rs` — `vesting` is now fully converted across [#21](https://github.com/Raveu-lab/soroban-devkit-contract/pull/21) and [#22](https://github.com/Raveu-lab/soroban-devkit-contract/pull/22) (thanks [@de-authority](https://github.com/de-authority)); `token`, `access-control`, `upgradeable`, `multisig`, `oracle`, `dao-voting`, and `escrow` still raise raw `panic!("...")` strings instead of a typed, matchable error code.
 
 ### Added
 
@@ -21,6 +21,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `oracle` — admin-published price feed with staleness checking.
 - `dao-voting` — on-chain proposal and voting, one-address-one-vote.
 - `.github/PULL_REQUEST_TEMPLATE.md` — no PR template existed in any of the three sibling repos; mirrors `CONTRIBUTING.md`'s existing "Pull Request Guidelines" as a checklist.
+- `vesting` — property-based tests over `vested_at`'s invariants via `proptest` ([#22](https://github.com/Raveu-lab/soroban-devkit-contract/pull/22), external contribution — thanks [@de-authority](https://github.com/de-authority)): the vested amount stays within `[0, total_amount]`, is zero before the cliff, equals `total_amount` after `vesting_duration`, and is monotonic in `now`.
 
 ### Fixed
 
@@ -37,7 +38,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The bug-report issue template's "Which contract?" dropdown only listed 5 of 9 contracts.
 - The repo had no actual `LICENSE` file — the README's badge and its "MIT — see [LICENSE](LICENSE)" line both linked to a file that didn't exist, a dead link since this repo's creation. The project claimed to be MIT-licensed and open source; there was never an actual license grant for the code, only prose about one.
 - `event-rich` never emitted `scvU256`/`scvI256`/`scvTimepoint`/`scvDuration` events, even after `soroban-devkit-core`'s decoder gained real support for all four — despite this contract's entire purpose being coverage of every XDR type the decoder can handle.
-- `vesting`'s panic paths raised raw strings instead of its own typed `VestingError` ([#21](https://github.com/Raveu-lab/soroban-devkit-contract/pull/21), external contribution — thanks [@de-authority](https://github.com/de-authority)).
+- `vesting`'s panic paths raised raw strings instead of its own typed `VestingError` ([#21](https://github.com/Raveu-lab/soroban-devkit-contract/pull/21) and [#22](https://github.com/Raveu-lab/soroban-devkit-contract/pull/22), external contributions — thanks [@de-authority](https://github.com/de-authority)).
+- `vesting.create_vesting()` validated `total_amount` and `vesting_duration` but never checked `cliff_duration` against `vesting_duration`. A schedule whose cliff outlasts its own vesting window was accepted, after the token transfer had already pulled the depositor's funds, and then behaved nothing like a vesting schedule: `vested_at` returns 0 for the entire cliff, including the whole stretch past `vesting_duration` where the curve says fully vested, then jumps straight to `total_amount` the instant the cliff clears. The linear portion is unreachable, so `vesting_duration` silently means nothing and the contract becomes a cliff-lock wearing a vesting schedule's shape. Rejected at creation now, with `cliff_duration == vesting_duration` still allowed as a legitimate pure-cliff schedule.
 
 ### Changed
 

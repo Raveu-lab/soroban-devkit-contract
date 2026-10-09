@@ -57,6 +57,9 @@ impl VestingContract {
         if vesting_duration == 0 {
             panic_with_error!(&env, VestingError::InvalidVestingDuration)
         }
+        if cliff_duration > vesting_duration {
+            panic_with_error!(&env, VestingError::CliffExceedsDuration)
+        }
 
         let token_client = TokenClient::new(&env, &token);
         token_client.transfer(&depositor, &env.current_contract_address(), &total_amount);
@@ -491,17 +494,57 @@ mod tests {
         s.client.get_schedule(&999);
     }
 
+    #[test]
+    #[should_panic(expected = "Error(Contract, #7)")]
+    fn test_cliff_outlasting_the_vesting_duration_is_rejected() {
+        let env = Env::default();
+        let s = setup(&env);
+        s.client.create_vesting(
+            &s.depositor,
+            &s.beneficiary,
+            &s.token_id,
+            &1_000_000,
+            &0,
+            &1_000,
+            &100,
+        );
+    }
+
+    #[test]
+    fn test_cliff_equal_to_the_vesting_duration_is_allowed() {
+        let env = Env::default();
+        let s = setup(&env);
+        let id = s.client.create_vesting(
+            &s.depositor,
+            &s.beneficiary,
+            &s.token_id,
+            &1_000_000,
+            &0,
+            &1_000,
+            &1_000,
+        );
+
+        env.ledger().set_timestamp(999);
+        assert_eq!(s.client.vested_amount(&id), 0);
+        env.ledger().set_timestamp(1_000);
+        assert_eq!(s.client.vested_amount(&id), 1_000_000);
+    }
+
     proptest! {
         #[test]
         fn test_vested_at_invariants(start_time in 0..1_000_000u64,
         cliff_duration in 0..100_000u64,
-        extra_vesting in 1..100_000u64,
-        total_amount in 0..1_000_000_000i128,
+        extra_vesting in 0..100_000u64,
+        total_amount in 1..1_000_000_000i128,
         now1 in 0..2_000_000u64,
         delta in 0..2_000_000u64) {
             let env = Env::default();
             let dummy_addr = Address::generate(&env);
-            let vesting_duration = cliff_duration + extra_vesting;
+            // Every generated schedule has to be one create_vesting would
+            // actually accept: a positive duration, and a cliff that doesn't
+            // outlast it. extra_vesting reaching 0 is what puts the
+            // cliff == vesting_duration boundary inside the search space.
+            let vesting_duration = (cliff_duration + extra_vesting).max(1);
             let schedule = VestingSchedule {
                 depositor: dummy_addr.clone(),
                 beneficiary: dummy_addr.clone(),

@@ -15,7 +15,13 @@ pub enum VestingError {
     Unauthorized = 2,
     /// The schedule has already been revoked
     AlreadyRevoked = 3,
+    /// `total_amount` was zero or negative
     InvalidTotalAmount = 4,
+    /// `vesting_duration` was zero
     InvalidVestingDuration = 5,
+    /// Nothing has vested beyond what has already been claimed
     NothingToClaim = 6,
+    /// `cliff_duration` outlasts `vesting_duration`, which would make the
+    /// linear portion of the curve unreachable
+    CliffExceedsDuration = 7,
 }
