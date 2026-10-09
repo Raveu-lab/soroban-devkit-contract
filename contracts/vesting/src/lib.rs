@@ -185,12 +185,15 @@ impl VestingContract {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use soroban_sdk::{
-        testutils::storage::Instance as _, testutils::storage::Persistent as _,
-        testutils::Address as _, testutils::Ledger as _, Env, String,
+        testutils::{
+            storage::{Instance as _, Persistent as _},
+            Address as _, Ledger as _,
+        },
+        Env, String,
     };
     use soroban_token::{TokenContract, TokenContractClient};
-
     struct Setup {
         contract_id: Address,
         client: VestingContractClient<'static>,
@@ -486,5 +489,42 @@ mod tests {
         let env = Env::default();
         let s = setup(&env);
         s.client.get_schedule(&999);
+    }
+
+    proptest! {
+        #[test]
+        fn test_vested_at_invariants(start_time in 0..1_000_000u64,
+        cliff_duration in 0..100_000u64,
+        extra_vesting in 1..100_000u64,
+        total_amount in 0..1_000_000_000i128,
+        now1 in 0..2_000_000u64,
+        delta in 0..2_000_000u64) {
+            let env = Env::default();
+            let dummy_addr = Address::generate(&env);
+            let vesting_duration = cliff_duration + extra_vesting;
+            let schedule = VestingSchedule {
+                depositor: dummy_addr.clone(),
+                beneficiary: dummy_addr.clone(),
+                token: dummy_addr,
+                total_amount,
+                claimed_amount: 0,
+                start_time,
+                cliff_duration,
+                vesting_duration,
+                revoked: false,
+            };
+            let now2 = now1.saturating_add(delta);
+            let vested_1 = VestingContract::vested_at(&schedule, now1);
+            let vested_2 = VestingContract::vested_at(&schedule, now2);
+            prop_assert!(vested_1 >= 0 && vested_1 <= total_amount, "vested_1 out of bounds: {}", vested_1);
+            if now1 < start_time.saturating_add(cliff_duration) {
+                prop_assert_eq!(vested_1, 0, "vested_1 should be 0 before cliff");
+            }
+            if now1 >= start_time.saturating_add(vesting_duration) {
+                prop_assert_eq!(vested_1, total_amount, "vested_1 should equal total_amount after vesting_duration");
+            }
+            prop_assert!(vested_1 <= vested_2, "Monotonicity violated: v1({}) > v2({}) at now1={}, now2={}", vested_1, vested_2, now1, now2);
+        }
+
     }
 }
