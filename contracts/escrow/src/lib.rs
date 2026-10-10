@@ -50,6 +50,12 @@ impl EscrowContract {
         if amount <= 0 {
             panic!("amount must be positive");
         }
+        // The arbiter is the only check on either party once a dispute is
+        // raised, so an arbiter who is also a party hands that party
+        // unilateral control of the funds.
+        if arbiter == depositor || arbiter == recipient {
+            panic!("arbiter must be a third party, not the depositor or recipient");
+        }
 
         let token_client = TokenClient::new(&env, &token);
         token_client.transfer(&depositor, &env.current_contract_address(), &amount);
@@ -574,5 +580,58 @@ mod tests {
         let env = Env::default();
         let s = setup(&env);
         s.client.get_escrow(&999);
+    }
+
+    #[test]
+    #[should_panic(expected = "arbiter must be a third party")]
+    fn test_arbiter_cannot_be_the_depositor() {
+        // An arbiter who is also the depositor defeats the whole escrow: the
+        // depositor disputes their own escrow, which removes the Active arm
+        // and with it the timelock release path anyone could have used, then
+        // refunds themselves as "arbiter". The recipient has no recourse.
+        let env = Env::default();
+        let s = setup(&env);
+        s.client.deposit(
+            &s.depositor,
+            &s.recipient,
+            &s.depositor,
+            &s.token_id,
+            &1_000,
+            &1_000_000,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "arbiter must be a third party")]
+    fn test_arbiter_cannot_be_the_recipient() {
+        // The mirror image: the recipient disputes, then releases to
+        // themselves as "arbiter", collecting before release_time.
+        let env = Env::default();
+        let s = setup(&env);
+        s.client.deposit(
+            &s.depositor,
+            &s.recipient,
+            &s.recipient,
+            &s.token_id,
+            &1_000,
+            &1_000_000,
+        );
+    }
+
+    #[test]
+    fn test_depositor_and_recipient_may_match_for_a_self_timelock() {
+        // Locking your own funds until release_time, with a neutral arbiter,
+        // is a legitimate use — only the arbiter's neutrality is enforced.
+        let env = Env::default();
+        let s = setup(&env);
+        let id = s.client.deposit(
+            &s.depositor,
+            &s.depositor,
+            &s.arbiter,
+            &s.token_id,
+            &1_000,
+            &1_000_000,
+        );
+        assert_eq!(s.client.get_escrow(&id).amount, 1_000);
     }
 }
