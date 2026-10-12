@@ -52,6 +52,13 @@ impl AccessControlContract {
         storage::get_role(&env, &role, &addr)
     }
 
+    /// Return the admin role configured for `role`, or `None` if none is
+    /// set. With no admin role, only the super admin can grant or revoke
+    /// that role.
+    pub fn role_admin(env: Env, role: Symbol) -> Option<Symbol> {
+        storage::get_role_admin(&env, &role)
+    }
+
     /// Set the admin role for a given role. Super admin only.
     pub fn set_role_admin(env: Env, caller: Address, role: Symbol, admin_role: Symbol) {
         caller.require_auth();
@@ -314,5 +321,60 @@ mod tests {
 
         // stranger holds no admin role for "minter" and isn't the super admin.
         client.grant_role(&stranger, &minter_role, &user);
+    }
+
+    #[test]
+    fn test_role_admin_is_readable() {
+        // set_role_admin had no read counterpart, unlike grant_role/has_role
+        // — the permission graph could be written but never inspected, and
+        // require_role_admin's "no admin role set" panic was the only way to
+        // discover whether one was configured.
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let role = Symbol::new(&env, "minter");
+        let admin_role = Symbol::new(&env, "minteradmin");
+        client.initialize(&super_admin);
+
+        assert_eq!(client.role_admin(&role), None);
+        client.set_role_admin(&super_admin, &role, &admin_role);
+        assert_eq!(client.role_admin(&role), Some(admin_role));
+    }
+
+    #[test]
+    fn test_role_admin_refreshes_the_instance_ttl_of_an_aging_contract() {
+        // RoleAdmin lives in instance storage, so reading it has to extend
+        // the instance TTL like every other accessor in storage.rs. This
+        // getter is the one path that reaches that storage without going
+        // through get_super_admin first, so it has to extend on its own.
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(AccessControlContract, ());
+        let client = AccessControlContractClient::new(&env, &contract_id);
+
+        let super_admin = Address::generate(&env);
+        let role = Symbol::new(&env, "minter");
+        client.initialize(&super_admin);
+
+        let initial_ttl = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        env.ledger()
+            .set_sequence_number(env.ledger().sequence() + initial_ttl / 2);
+
+        let ttl_before = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_before < initial_ttl,
+            "precondition: the instance should have aged"
+        );
+
+        client.role_admin(&role);
+
+        let ttl_after = env.as_contract(&contract_id, || env.storage().instance().get_ttl());
+        assert!(
+            ttl_after > ttl_before,
+            "expected role_admin() to refresh the instance TTL ({ttl_before} -> {ttl_after})"
+        );
     }
 }

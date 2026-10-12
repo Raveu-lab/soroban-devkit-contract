@@ -73,11 +73,14 @@ pub fn get_role(env: &Env, role: &Symbol, addr: &Address) -> bool {
 pub fn set_role_admin(env: &Env, role: &Symbol, admin_role: &Symbol) {
     let key = (Symbol::new(env, "RoleAdmin"), role.clone());
     env.storage().instance().set(&key, admin_role);
+    extend_instance_ttl(env);
 }
 
 pub fn get_role_admin(env: &Env, role: &Symbol) -> Option<Symbol> {
     let key = (Symbol::new(env, "RoleAdmin"), role.clone());
-    env.storage().instance().get(&key)
+    let admin_role = env.storage().instance().get(&key);
+    extend_instance_ttl(env);
+    admin_role
 }
 
 /// Panics if caller does not hold the admin role for `role`.
