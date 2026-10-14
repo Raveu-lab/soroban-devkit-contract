@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/Raveu-lab/soroban-devkit-contract/actions/workflows/ci.yml/badge.svg)](https://github.com/Raveu-lab/soroban-devkit-contract/actions)
 
+**▶ [See the safety guards enforced on-chain](demo/)** — a walkthrough calling the live testnet deployments, with real captured output. No key or funded account needed.
+
 ---
 
 ## What is this?

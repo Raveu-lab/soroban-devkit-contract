@@ -16,6 +16,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `token`: `transfer_from` with real allowance decrement.
 - `multisig`: `execute()` actually transfers tokens, instead of just recording state.
 - `escrow` — time-locked escrow with dispute resolution (depositor/recipient/arbiter roles).
+- `demo/` — a walkthrough that calls the live testnet deployments and shows `vesting`'s cliff guard and `escrow`'s arbiter guard actually rejecting bad input, with real captured output rather than a unit test asserting they would. Runs through `sdev simulate`, so it needs no key, no funded account and no local build. It also makes the typed-error gap concrete side by side: `vesting` reports `Error(Contract, #7)` while `escrow` can only manage `VM call trapped: UnreachableCodeReached`.
 - `access-control.role_admin()` — reads back the admin role configured for a role. `set_role_admin()` had no counterpart, unlike every other write in the contract (`grant_role`/`revoke_role` pair with `has_role`), so the permission graph could be written but never inspected and `require_role_admin`'s "no admin role set" panic was the only way to find out whether one existed.
 - `vesting` — linear vesting with a cliff.
 - `token`: `burn` and `clawback`.
