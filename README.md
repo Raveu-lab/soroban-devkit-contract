@@ -62,7 +62,7 @@ cargo test
 
 ### `token`
 
-A full SEP-41 fungible token contract. Implements the state-changing `transfer`, `approve`, `transfer_from`, `mint`, `burn`, and `clawback` (each emitting a structured event), plus the read-only `balance`, `allowance`, `name`, `symbol`, and `decimals` views. `clawback_enabled` is fixed at `initialize()` — like Stellar classic assets, it can't be turned on or off afterward.
+A full SEP-41 fungible token contract. Implements the state-changing `transfer`, `approve`, `transfer_from`, `mint`, `burn`, `burn_from`, and `clawback` (each emitting a structured event), plus the read-only `balance`, `allowance`, `name`, `symbol`, and `decimals` views. One deliberate deviation: `approve`'s expiry parameter is named `expiry_ledger` where SEP-41 calls it `live_until_ledger`. The semantics match; the name appears in the contract spec, so renaming it would change the deployed interface. `clawback_enabled` is fixed at `initialize()` — like Stellar classic assets, it can't be turned on or off afterward.
 
 ```
 contracts/token/

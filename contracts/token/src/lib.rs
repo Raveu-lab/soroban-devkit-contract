@@ -150,6 +150,34 @@ impl TokenContract {
         events::emit_burn(&env, &from, amount);
     }
 
+    /// Burn tokens from `from`'s balance using a pre-approved allowance.
+    /// Requires auth from `spender`. Decrements the allowance by `amount`,
+    /// the same way `transfer_from` does. Panics if the allowance or
+    /// `from`'s balance is insufficient. Emits the same `burn` event as a
+    /// direct burn, per SEP-41.
+    pub fn burn_from(env: Env, spender: Address, from: Address, amount: i128) {
+        spender.require_auth();
+
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+
+        let allowance = storage::get_allowance(&env, &from, &spender);
+        if allowance < amount {
+            panic!("insufficient allowance");
+        }
+
+        let from_balance = storage::get_balance(&env, &from);
+        if from_balance < amount {
+            panic!("insufficient balance");
+        }
+
+        storage::set_allowance_amount(&env, &from, &spender, allowance - amount);
+        storage::set_balance(&env, &from, from_balance - amount);
+
+        events::emit_burn(&env, &from, amount);
+    }
+
     /// Forcibly burn tokens from any address. Admin only, and only if
     /// `clawback_enabled` was set at initialization — it cannot be turned
     /// on afterward. Panics if the balance is insufficient. Emits a
@@ -912,5 +940,65 @@ mod tests {
         client.mint(&user, &100_000);
 
         client.clawback(&user, &200_000);
+    }
+
+    #[test]
+    fn test_burn_from_spends_the_allowance_and_the_balance() {
+        // SEP-41's TokenInterface defines burn_from alongside transfer_from:
+        // the allowance-based burn. It was the one function of the ten this
+        // contract didn't implement, while the README and ARCHITECTURE.md
+        // both described the token as fully SEP-41 compliant.
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        client.approve(&alice, &spender, &500, &1_000);
+
+        client.burn_from(&spender, &alice, &200);
+
+        assert_eq!(client.balance(&alice), 1_000_000 - 200);
+        assert_eq!(client.allowance(&alice, &spender), 300);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient allowance")]
+    fn test_burn_from_rejects_an_amount_above_the_allowance() {
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        client.approve(&alice, &spender, &100, &1_000);
+
+        client.burn_from(&spender, &alice, &101);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient balance")]
+    fn test_burn_from_rejects_an_amount_above_the_balance() {
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        client.approve(&alice, &spender, &2_000_000, &1_000);
+
+        client.burn_from(&spender, &alice, &1_000_001);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_burn_from_rejects_a_non_positive_amount() {
+        // Same reasoning as every other balance-moving function here: a
+        // negative amount would flip the arithmetic and credit the holder.
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        client.approve(&alice, &spender, &500, &1_000);
+
+        client.burn_from(&spender, &alice, &-1);
+    }
+
+    #[test]
+    fn test_burn_from_fails_once_the_allowance_has_expired() {
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        env.ledger().set_sequence_number(100);
+        client.approve(&alice, &spender, &500, &200);
+
+        env.ledger().set_sequence_number(201);
+        assert_eq!(client.allowance(&alice, &spender), 0);
+        assert!(client.try_burn_from(&spender, &alice, &100).is_err());
     }
 }
