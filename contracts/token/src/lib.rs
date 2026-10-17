@@ -1,6 +1,6 @@
 //! SEP-41 compliant fungible token contract.
 //!
-//! Implements: transfer, approve, transfer_from, mint, burn, clawback.
+//! Implements: transfer, approve, transfer_from, mint, burn, burn_from, clawback.
 //! Emits a typed event on every state-changing operation.
 //!
 //! # Architecture
