@@ -237,19 +237,9 @@ soroban-devkit-contracts/
 
 ## Deployments
 
-All contracts are deployed to **Stellar testnet**. Contract IDs are tracked in [`deployments.json`](deployments.json) and [`ADDRESSES.md`](ADDRESSES.md).
+All 9 contracts are deployed to **Stellar testnet**. [`ADDRESSES.md`](ADDRESSES.md) is the single source of truth for contract IDs — it says so explicitly — and [`deployments.json`](deployments.json) is its machine-readable counterpart. Both are updated on every deploy/redeploy.
 
-| Contract | Testnet ID |
-|----------|-----------|
-| `token` | `CCEQRERHTDQU5Q45JRBRWSFF6QS22TWRURAIOH27FK23ZPOB6YNXRHSX` |
-| `access-control` | `CCCKSTG5SDF6DJOXJASU2YP5EEWZLIGKBNUCWO665KWGFVPUFEVTIGUB` |
-| `upgradeable` | `CCXNDNKLCSR2M2TMNHABOARH5Y4H6M27GVHLK7GOIRMRGCTQT32HWXXC` |
-| `multisig` | `CCJZKGFUIHYBKZNGO4AW5HHYPJ4PLVYDJ2B342BLG3V5J23KI3CIAKUO` |
-| `event-rich` | `CAVHZ2HA3MYBQRTGBSBWMJPABL4L7OQYLPOLSGQNCUYEYZLWMH2F6LFR` |
-| `escrow` | `CDY5RRA5666C6SQYVBAJW7ARZC2JKKBTGVGMTSANVDJLAC6LHO37KWSH` |
-| `vesting` | `CCKLABPVWH3EV7Y4YMVHFCBWXPJQJRDFNRB6COYB34Z6IEUUBLV6G4XX` |
-| `oracle` | `CCU6IPNT2HQJOIBZ32GLWX7NRMKAGK22T7JCGPRYSZ6QMM57LHXX6UCK` |
-| `dao-voting` | `CABVISPJ6JS2G637CNEDTMJ3OCYN4QCCZ7M2DYON7YLKOQ6QHQUEDTFE` |
+This section used to duplicate the address table directly. That table went stale twice (escrow/vesting after a 2026-10-11 redeploy, token/access-control after a 2026-10-22 redeploy) because only `ADDRESSES.md`/`deployments.json` were updated each time, exactly the "doc claims something that isn't true anymore" pattern this project watches for. Removed rather than re-synced, so there's only one place left to go stale.
 
 ---
 

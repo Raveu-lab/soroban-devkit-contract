@@ -394,23 +394,11 @@ cargo test
 
 ## Deployments
 
-Testnet deployments are tracked in `deployments.json`. When a contract is deployed or redeployed, the file is updated and committed.
+All 9 contracts are live on testnet. [`ADDRESSES.md`](ADDRESSES.md) is the single source of truth for contract IDs, and `deployments.json` is its machine-readable counterpart; both are updated on every deploy/redeploy.
 
-All 9 contracts are live on testnet:
+This section previously duplicated the address table directly, and it went stale twice — after the 2026-10-11 escrow/vesting redeploy and the 2026-10-22 token/access-control redeploy — because only `ADDRESSES.md`/`deployments.json` were updated each time. Removed rather than re-synced, so there's one fewer place left to drift.
 
-| Contract | Testnet ID |
-|----------|-----------|
-| `token` | `CCEQRERHTDQU5Q45JRBRWSFF6QS22TWRURAIOH27FK23ZPOB6YNXRHSX` |
-| `access-control` | `CCCKSTG5SDF6DJOXJASU2YP5EEWZLIGKBNUCWO665KWGFVPUFEVTIGUB` |
-| `upgradeable` | `CCXNDNKLCSR2M2TMNHABOARH5Y4H6M27GVHLK7GOIRMRGCTQT32HWXXC` |
-| `multisig` | `CCJZKGFUIHYBKZNGO4AW5HHYPJ4PLVYDJ2B342BLG3V5J23KI3CIAKUO` |
-| `event-rich` | `CAVHZ2HA3MYBQRTGBSBWMJPABL4L7OQYLPOLSGQNCUYEYZLWMH2F6LFR` |
-| `escrow` | `CDY5RRA5666C6SQYVBAJW7ARZC2JKKBTGVGMTSANVDJLAC6LHO37KWSH` |
-| `vesting` | `CCKLABPVWH3EV7Y4YMVHFCBWXPJQJRDFNRB6COYB34Z6IEUUBLV6G4XX` |
-| `oracle` | `CCU6IPNT2HQJOIBZ32GLWX7NRMKAGK22T7JCGPRYSZ6QMM57LHXX6UCK` |
-| `dao-voting` | `CABVISPJ6JS2G637CNEDTMJ3OCYN4QCCZ7M2DYON7YLKOQ6QHQUEDTFE` |
-
-The `soroban-devkit-core` integration tests read `deployments.json` to resolve contract IDs at test time.
+This section also previously claimed "`soroban-devkit-core`'s integration tests read `deployments.json` to resolve contract IDs at test time." That was never true: `soroban-devkit-core`'s live-network tests use hardcoded dummy contract IDs and public keys, and neither its `src/` nor `tests/` reference `deployments.json` anywhere — confirmed by grepping both directories. This is the same false claim `ADDRESSES.md`'s own notes already corrected once; this near-identical copy of it had survived uncorrected until now.
 
 ---
 
