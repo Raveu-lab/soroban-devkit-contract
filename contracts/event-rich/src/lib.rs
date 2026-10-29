@@ -12,8 +12,8 @@
 #![allow(deprecated)]
 
 use soroban_sdk::{
-    contract, contractimpl, Address, Bytes, Duration, Env, Error, Map, String, Symbol, Timepoint,
-    Vec, I256, U256,
+    contract, contractimpl, Address, Bytes, Duration, Env, Error, Map, MuxedAddress, String,
+    Symbol, Timepoint, Vec, I256, U256,
 };
 
 #[contract]
@@ -79,6 +79,16 @@ impl EventRichContract {
     pub fn emit_address(env: Env, addr: Address) {
         env.events()
             .publish((Symbol::new(&env, "address_event"), addr.clone()), addr);
+    }
+
+    /// Emit an event containing a MuxedAddress — a plain `Address`
+    /// parameter cannot carry a multiplexing id at all, and traps with
+    /// `UnreachableCodeReached` if a muxed value is sent to one (confirmed
+    /// live against a deployed contract). `MuxedAddress` is the dedicated
+    /// type a contract needs to actually accept one.
+    pub fn emit_muxed_address(env: Env, addr: MuxedAddress) {
+        env.events()
+            .publish((Symbol::new(&env, "muxed_address_event"),), addr);
     }
 
     /// Emit events using 256-bit integers
@@ -157,6 +167,22 @@ mod tests {
         let contract_id = env.register(EventRichContract, ());
         let client = EventRichContractClient::new(&env, &contract_id);
         client.emit_time_types();
+    }
+
+    #[test]
+    fn test_emit_muxed_address() {
+        // ArgEncoder/BindingGenerator have encoded/typed M... muxed
+        // addresses for a while, but no function in this workspace had a
+        // parameter shaped to actually receive one — a plain Address
+        // parameter traps on a muxed argument (confirmed live against a
+        // deployed contract, not just inferred). MuxedAddress is the
+        // dedicated type for this.
+        use soroban_sdk::testutils::MuxedAddress as _;
+        let env = Env::default();
+        let contract_id = env.register(EventRichContract, ());
+        let client = EventRichContractClient::new(&env, &contract_id);
+        let muxed = soroban_sdk::MuxedAddress::generate(&env);
+        client.emit_muxed_address(&muxed);
     }
 
     #[test]

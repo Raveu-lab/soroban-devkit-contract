@@ -13,6 +13,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `event-rich.emit_muxed_address()` — this contract's whole purpose is exercising every XDR type `soroban-devkit-core`'s `EventDecoder` can decode, but muxed (`M...`) addresses had never actually been tested against a real contract call: `ArgEncoder`/`BindingGenerator` have encoded/typed them for a while, verified only against hand-built unit-test fixtures in `soroban-devkit-core`, never against a real deployed contract, because no function in this workspace had a parameter shaped to receive one. Confirmed live that `emit_address`'s plain `Address` parameter traps with `UnreachableCodeReached` for a muxed argument — `Address` genuinely cannot carry a multiplexing id; `MuxedAddress` is the dedicated type for that. `emit_address` itself is correct as written and needed no change; this is a new function, not a fix to an existing one.
 - `token`, `access-control`, `upgradeable`, `multisig`, `event-rich` — the initial scaffold.
 - `token`: `transfer_from` with real allowance decrement.
 - `multisig`: `execute()` actually transfers tokens, instead of just recording state.
