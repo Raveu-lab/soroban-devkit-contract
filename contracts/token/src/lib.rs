@@ -234,7 +234,7 @@ mod tests {
     use super::*;
     use soroban_sdk::{
         testutils::storage::Instance as _, testutils::storage::Persistent as _,
-        testutils::Address as _, testutils::Ledger as _, Env,
+        testutils::storage::Temporary as _, testutils::Address as _, testutils::Ledger as _, Env,
     };
 
     fn allowance_setup(env: &Env) -> (TokenContractClient<'_>, Address, Address) {
@@ -659,6 +659,48 @@ mod tests {
         client.approve(&alice, &spender, &500_000, &1000);
 
         client.transfer_from(&spender, &alice, &bob, &200_000);
+    }
+
+    #[test]
+    fn test_transfer_from_does_not_shorten_the_allowance_entrys_ttl() {
+        // set_allowance_amount's own doc comment claims overwriting an
+        // existing temporary entry's amount "keeps its expiration ledger
+        // and TTL" — that's an assumption about how the storage host
+        // treats a write to an *existing* key, not something the function
+        // itself enforces. If writing actually reset live_until_ledger to
+        // a short default (the behavior for a brand-new key), a partial
+        // spend via transfer_from would silently make the allowance's
+        // underlying storage entry expire (and read back as 0) well before
+        // its stated SEP-41 expiration_ledger — the opposite of what
+        // set_allowance's own extend_ttl call was written to guarantee.
+        let env = Env::default();
+        let (client, alice, spender) = allowance_setup(&env);
+        let bob = Address::generate(&env);
+        let contract_id = client.address.clone();
+        env.ledger().set_sequence_number(100);
+
+        // A far-future expiry, so set_allowance's extend_ttl call gives
+        // this entry a TTL much longer than temporary storage's own
+        // minimum — if a later overwrite reset it to that minimum, the gap
+        // would be large enough to show up clearly.
+        client.approve(&alice, &spender, &500, &100_000);
+        let key = (alice.clone(), spender.clone());
+        let ttl_after_approve =
+            env.as_contract(&contract_id, || env.storage().temporary().get_ttl(&key));
+
+        client.transfer_from(&spender, &alice, &bob, &100);
+
+        let ttl_after_spend =
+            env.as_contract(&contract_id, || env.storage().temporary().get_ttl(&key));
+        assert!(
+            ttl_after_spend >= ttl_after_approve - 1,
+            "transfer_from's partial spend shortened the allowance entry's TTL from {ttl_after_approve} to {ttl_after_spend} — it should be preserved, per set_allowance_amount's own doc comment"
+        );
+
+        // And the allowance itself must still report correctly, still
+        // bounded by its original expiration_ledger, not reset to some
+        // new one.
+        assert_eq!(client.allowance(&alice, &spender), 400);
     }
 
     #[test]

@@ -29,6 +29,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `dao-voting` — on-chain proposal and voting, one-address-one-vote.
 - `.github/PULL_REQUEST_TEMPLATE.md` — no PR template existed in any of the three sibling repos; mirrors `CONTRIBUTING.md`'s existing "Pull Request Guidelines" as a checklist.
 - `vesting` — property-based tests over `vested_at`'s invariants via `proptest` ([#22](https://github.com/Raveu-lab/soroban-devkit-contract/pull/22), external contribution — thanks [@de-authority](https://github.com/de-authority)): the vested amount stays within `[0, total_amount]`, is zero before the cliff, equals `total_amount` after `vesting_duration`, and is monotonic in `now`.
+- `token` — a regression test confirming `set_allowance_amount`'s own doc comment is actually true: that overwriting an existing temporary-storage entry (as `transfer_from`/`burn_from` do to decrement an allowance) preserves its TTL rather than resetting it to the short default a brand-new key gets. That assumption was previously undocumented by any test — had it been wrong, a partial spend would have silently made the allowance's storage entry expire (and read back as 0) well before its stated SEP-41 `expiry_ledger`, the opposite of what `set_allowance`'s `extend_ttl` call was written to guarantee. Confirmed correct against the real SDK test harness; no code change needed.
 
 ### Fixed
 
