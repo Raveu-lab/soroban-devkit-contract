@@ -13,4 +13,6 @@ pub enum OracleError {
     NoPriceData = 1,
     /// set_price was called with a zero or negative price
     InvalidPrice = 2,
+    /// initialize() was called on a contract that already has an admin set
+    AlreadyInitialized = 3,
 }

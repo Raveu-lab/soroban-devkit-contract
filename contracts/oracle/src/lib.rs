@@ -15,7 +15,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, Symbol};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol};
 
 mod errors;
 mod events;
@@ -33,7 +33,7 @@ impl OracleContract {
     /// Initialize with an admin address. Can only be called once.
     pub fn initialize(env: Env, admin: Address) {
         if storage::is_initialized(&env) {
-            panic!("already initialized");
+            panic_with_error!(&env, OracleError::AlreadyInitialized);
         }
         storage::set_admin(&env, &admin);
     }
@@ -45,7 +45,7 @@ impl OracleContract {
         admin.require_auth();
 
         if price <= 0 {
-            panic!("price must be positive");
+            panic_with_error!(&env, OracleError::InvalidPrice);
         }
 
         let data = PriceData {
@@ -59,7 +59,8 @@ impl OracleContract {
     /// Return the latest published price for an asset.
     /// Panics if no price has ever been published for it.
     pub fn get_price(env: Env, asset: Symbol) -> PriceData {
-        storage::get_price(&env, &asset).unwrap_or_else(|| panic!("no price for asset"))
+        storage::get_price(&env, &asset)
+            .unwrap_or_else(|| panic_with_error!(&env, OracleError::NoPriceData))
     }
 
     /// Return true if the asset's latest price is older than `max_age`
@@ -244,7 +245,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "no price")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_get_price_for_unknown_asset_panics() {
         let env = Env::default();
         let (_admin, client) = setup(&env);
@@ -252,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "price must be positive")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_set_price_rejects_zero() {
         let env = Env::default();
         let (_admin, client) = setup(&env);
@@ -260,7 +261,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "price must be positive")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_set_price_rejects_negative() {
         let env = Env::default();
         let (_admin, client) = setup(&env);
@@ -294,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "already initialized")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_double_initialize_panics() {
         let env = Env::default();
         let (admin, client) = setup(&env);
