@@ -5,7 +5,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, BytesN, Env};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, BytesN, Env};
 
 mod errors;
 mod events;
@@ -22,7 +22,7 @@ impl UpgradeableContract {
     /// Initialize with an admin address and version 1.
     pub fn initialize(env: Env, admin: Address) {
         if storage::is_initialized(&env) {
-            panic!("already initialized");
+            panic_with_error!(&env, UpgradeableError::AlreadyInitialized);
         }
         storage::set_admin(&env, &admin);
         storage::set_version(&env, 1);
@@ -64,7 +64,7 @@ impl UpgradeableContract {
         current_admin.require_auth();
         let stored = storage::get_admin(&env);
         if current_admin != stored {
-            panic!("not admin");
+            panic_with_error!(&env, UpgradeableError::NotAdmin);
         }
         storage::set_admin(&env, &new_admin);
         events::emit_admin_transferred(&env, &current_admin, &new_admin);
@@ -167,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "already initialized")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_double_initialize_panics() {
         let env = Env::default();
         env.mock_all_auths();
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not admin")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_transfer_admin_rejects_a_stale_current_admin() {
         let env = Env::default();
         env.mock_all_auths();
