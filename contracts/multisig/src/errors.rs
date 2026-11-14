@@ -21,4 +21,8 @@ pub enum MultisigError {
     AlreadyExecuted = 5,
     /// Not enough signers have approved the proposal yet
     InsufficientApprovals = 6,
+    /// The signers list passed to initialize() contains the same address twice
+    DuplicateSigner = 7,
+    /// propose() was called with a zero or negative amount
+    InvalidAmount = 8,
 }

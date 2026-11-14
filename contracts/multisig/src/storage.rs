@@ -3,8 +3,9 @@
 //! All reads and writes to contract storage go through this module.
 //! Never call `env.storage()` directly in `lib.rs`.
 
+use crate::errors::MultisigError;
 use crate::types::Proposal;
-use soroban_sdk::{Address, Env, IntoVal, Symbol, Val, Vec};
+use soroban_sdk::{panic_with_error, Address, Env, IntoVal, Symbol, Val, Vec};
 
 /// How close to the network's max TTL a persistent entry is kept — same
 /// approach as oracle/access-control/dao-voting/escrow: self-adjusting to
@@ -98,7 +99,7 @@ pub fn get_proposal(env: &Env, id: u32) -> Proposal {
     if proposal.is_some() {
         extend_persistent_ttl(env, &key);
     }
-    proposal.unwrap_or_else(|| panic!("proposal not found"))
+    proposal.unwrap_or_else(|| panic_with_error!(env, MultisigError::ProposalNotFound))
 }
 
 pub fn set_approval(env: &Env, proposal_id: u32, signer: &Address, value: bool) {
@@ -130,5 +131,5 @@ pub fn require_signer(env: &Env, addr: &Address) {
             return;
         }
     }
-    panic!("not a signer");
+    panic_with_error!(env, MultisigError::NotSigner);
 }

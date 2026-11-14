@@ -5,7 +5,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, Vec};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Vec};
 
 mod errors;
 mod events;
@@ -26,10 +26,10 @@ impl MultisigContract {
     /// Initialize with a list of signers and a threshold.
     pub fn initialize(env: Env, signers: Vec<Address>, threshold: u32) {
         if storage::is_initialized(&env) {
-            panic!("already initialized");
+            panic_with_error!(&env, MultisigError::AlreadyInitialized);
         }
         if threshold == 0 || threshold as usize > signers.len() as usize {
-            panic!("invalid threshold");
+            panic_with_error!(&env, MultisigError::InvalidThreshold);
         }
         // count_approvals() sums one approval per entry in the signers
         // list, not per unique address — a duplicate would let that one
@@ -37,7 +37,7 @@ impl MultisigContract {
         for i in 0..signers.len() {
             for j in (i + 1)..signers.len() {
                 if signers.get(i).unwrap() == signers.get(j).unwrap() {
-                    panic!("duplicate signer");
+                    panic_with_error!(&env, MultisigError::DuplicateSigner);
                 }
             }
         }
@@ -53,7 +53,7 @@ impl MultisigContract {
         storage::require_signer(&env, &proposer);
 
         if amount <= 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, MultisigError::InvalidAmount);
         }
 
         let id = storage::get_proposal_count(&env);
@@ -76,7 +76,7 @@ impl MultisigContract {
 
         let proposal = storage::get_proposal(&env, proposal_id);
         if proposal.executed {
-            panic!("proposal already executed");
+            panic_with_error!(&env, MultisigError::AlreadyExecuted);
         }
         storage::set_approval(&env, proposal_id, &signer, true);
         events::emit_approved(&env, proposal_id, &signer);
@@ -89,13 +89,13 @@ impl MultisigContract {
 
         let mut proposal = storage::get_proposal(&env, proposal_id);
         if proposal.executed {
-            panic!("already executed");
+            panic_with_error!(&env, MultisigError::AlreadyExecuted);
         }
 
         let approval_count = storage::count_approvals(&env, proposal_id);
         let threshold = storage::get_threshold(&env);
         if approval_count < threshold {
-            panic!("insufficient approvals");
+            panic_with_error!(&env, MultisigError::InsufficientApprovals);
         }
 
         proposal.executed = true;
@@ -332,7 +332,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "already executed")]
+    #[should_panic(expected = "Error(Contract, #5)")]
     fn test_execute_twice_panics() {
         use soroban_sdk::String;
         use soroban_token::{TokenContract, TokenContractClient};
@@ -365,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "duplicate signer")]
+    #[should_panic(expected = "Error(Contract, #7)")]
     fn test_initialize_rejects_duplicate_signers() {
         let env = Env::default();
         env.mock_all_auths();
@@ -385,7 +385,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "amount must be positive")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_propose_rejects_negative_amount() {
         let env = Env::default();
         env.mock_all_auths();
