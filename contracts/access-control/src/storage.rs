@@ -3,7 +3,8 @@
 //! All reads and writes to contract storage go through this module.
 //! Never call `env.storage()` directly in `lib.rs`.
 
-use soroban_sdk::{Address, Env, Symbol};
+use crate::errors::AccessControlError;
+use soroban_sdk::{panic_with_error, Address, Env, Symbol};
 
 /// How close to the network's max TTL a role-membership entry is kept —
 /// extended whenever its remaining TTL drops within this many ledgers of
@@ -89,9 +90,9 @@ pub fn require_role_admin(env: &Env, caller: &Address, role: &Symbol) {
     if caller == &super_admin {
         return;
     }
-    let admin_role =
-        get_role_admin(env, role).unwrap_or_else(|| panic!("no admin role set for this role"));
+    let admin_role = get_role_admin(env, role)
+        .unwrap_or_else(|| panic_with_error!(env, AccessControlError::RoleAdminNotSet));
     if !get_role(env, &admin_role, caller) {
-        panic!("caller does not have admin role");
+        panic_with_error!(env, AccessControlError::NotRoleAdmin);
     }
 }

@@ -6,7 +6,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, Symbol};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol};
 
 mod errors;
 mod events;
@@ -26,7 +26,7 @@ impl AccessControlContract {
     /// they can grant or revoke any role.
     pub fn initialize(env: Env, super_admin: Address) {
         if storage::is_initialized(&env) {
-            panic!("already initialized");
+            panic_with_error!(&env, AccessControlError::AlreadyInitialized);
         }
         storage::set_super_admin(&env, &super_admin);
     }
@@ -64,7 +64,7 @@ impl AccessControlContract {
         caller.require_auth();
         let super_admin = storage::get_super_admin(&env);
         if caller != super_admin {
-            panic!("only super admin can set role admins");
+            panic_with_error!(&env, AccessControlError::NotSuperAdmin);
         }
         storage::set_role_admin(&env, &role, &admin_role);
     }
@@ -284,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "already initialized")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_cannot_initialize_twice() {
         let env = Env::default();
         env.mock_all_auths();
@@ -302,7 +302,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "caller does not have admin role")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_unauthorized_caller_cannot_grant_role() {
         let env = Env::default();
         env.mock_all_auths();
