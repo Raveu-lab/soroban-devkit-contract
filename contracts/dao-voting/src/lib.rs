@@ -18,7 +18,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, String};
 
 mod errors;
 mod events;
@@ -41,7 +41,7 @@ impl DaoVotingContract {
         proposer.require_auth();
 
         if voting_duration == 0 {
-            panic!("voting_duration must be positive");
+            panic_with_error!(&env, DaoVotingError::InvalidVotingDuration);
         }
 
         let id = storage::get_proposal_count(&env);
@@ -70,10 +70,10 @@ impl DaoVotingContract {
         if !matches!(proposal.status, ProposalStatus::Active)
             || env.ledger().timestamp() >= proposal.deadline
         {
-            panic!("voting has closed");
+            panic_with_error!(&env, DaoVotingError::WrongPhase);
         }
         if storage::has_voted(&env, proposal_id, &voter) {
-            panic!("already voted");
+            panic_with_error!(&env, DaoVotingError::AlreadyVoted);
         }
 
         if support {
@@ -95,10 +95,10 @@ impl DaoVotingContract {
 
         let mut proposal = storage::get_proposal(&env, proposal_id);
         if !matches!(proposal.status, ProposalStatus::Active) {
-            panic!("proposal is not active");
+            panic_with_error!(&env, DaoVotingError::NotActive);
         }
         if env.ledger().timestamp() < proposal.deadline {
-            panic!("voting is still open");
+            panic_with_error!(&env, DaoVotingError::WrongPhase);
         }
 
         let passed = proposal.for_votes > proposal.against_votes;
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "voting_duration must be positive")]
+    #[should_panic(expected = "Error(Contract, #5)")]
     fn test_propose_rejects_zero_voting_duration() {
         // vesting's create_vesting already rejects a zero duration with
         // this exact wording — propose() had no equivalent guard, so a
@@ -342,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "already voted")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_cannot_vote_twice() {
         let env = Env::default();
         let (proposer, client) = setup(&env);
@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "voting has closed")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_cannot_vote_after_deadline() {
         let env = Env::default();
         let (proposer, client) = setup(&env);
@@ -366,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "voting is still open")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_finalize_before_deadline_panics() {
         let env = Env::default();
         let (proposer, client) = setup(&env);
@@ -412,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "voting has closed")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_cannot_vote_after_finalize() {
         let env = Env::default();
         let (proposer, client) = setup(&env);
@@ -428,7 +428,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not active")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_cannot_finalize_twice() {
         let env = Env::default();
         let (proposer, client) = setup(&env);
@@ -440,7 +440,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "proposal not found")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_get_unknown_proposal_panics() {
         let env = Env::default();
         let (_proposer, client) = setup(&env);

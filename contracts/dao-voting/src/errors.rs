@@ -17,4 +17,6 @@ pub enum DaoVotingError {
     NotActive = 3,
     /// Voting or finalizing was attempted at the wrong time relative to the deadline
     WrongPhase = 4,
+    /// propose() was called with a zero voting_duration
+    InvalidVotingDuration = 5,
 }

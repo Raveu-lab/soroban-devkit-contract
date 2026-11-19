@@ -3,8 +3,9 @@
 //! All reads and writes to contract storage go through this module.
 //! Never call `env.storage()` directly in `lib.rs`.
 
+use crate::errors::DaoVotingError;
 use crate::types::Proposal;
-use soroban_sdk::{Address, Env, IntoVal, Symbol, Val};
+use soroban_sdk::{panic_with_error, Address, Env, IntoVal, Symbol, Val};
 
 /// How close to the network's max TTL a persistent entry is kept —
 /// extended whenever its remaining TTL drops within this many ledgers of
@@ -62,7 +63,7 @@ pub fn get_proposal(env: &Env, id: u32) -> Proposal {
     if proposal.is_some() {
         extend_persistent_ttl(env, &key);
     }
-    proposal.unwrap_or_else(|| panic!("proposal not found"))
+    proposal.unwrap_or_else(|| panic_with_error!(env, DaoVotingError::ProposalNotFound))
 }
 
 pub fn has_voted(env: &Env, id: u32, voter: &Address) -> bool {
