@@ -16,7 +16,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env};
 
 mod errors;
 mod events;
@@ -48,13 +48,13 @@ impl EscrowContract {
     ) -> u32 {
         depositor.require_auth();
         if amount <= 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, EscrowError::InvalidAmount);
         }
         // The arbiter is the only check on either party once a dispute is
         // raised, so an arbiter who is also a party hands that party
         // unilateral control of the funds.
         if arbiter == depositor || arbiter == recipient {
-            panic!("arbiter must be a third party, not the depositor or recipient");
+            panic_with_error!(&env, EscrowError::InvalidArbiter);
         }
 
         let token_client = TokenClient::new(&env, &token);
@@ -87,16 +87,16 @@ impl EscrowContract {
         match escrow.status {
             EscrowStatus::Disputed => {
                 if caller != escrow.arbiter {
-                    panic!("only the arbiter can resolve a disputed escrow");
+                    panic_with_error!(&env, EscrowError::Unauthorized);
                 }
             }
             EscrowStatus::Active => {
                 let unlocked = env.ledger().timestamp() >= escrow.release_time;
                 if caller != escrow.depositor && !unlocked {
-                    panic!("too early — only the depositor can release before release_time");
+                    panic_with_error!(&env, EscrowError::TooEarly);
                 }
             }
-            _ => panic!("escrow is not active"),
+            _ => panic_with_error!(&env, EscrowError::NotActive),
         }
 
         escrow.status = EscrowStatus::Released;
@@ -122,15 +122,15 @@ impl EscrowContract {
         match escrow.status {
             EscrowStatus::Disputed => {
                 if caller != escrow.arbiter {
-                    panic!("only the arbiter can resolve a disputed escrow");
+                    panic_with_error!(&env, EscrowError::Unauthorized);
                 }
             }
             EscrowStatus::Active => {
                 if caller != escrow.recipient {
-                    panic!("only the recipient can voluntarily refund an active escrow");
+                    panic_with_error!(&env, EscrowError::Unauthorized);
                 }
             }
-            _ => panic!("escrow is not active"),
+            _ => panic_with_error!(&env, EscrowError::NotActive),
         }
 
         escrow.status = EscrowStatus::Refunded;
@@ -153,10 +153,10 @@ impl EscrowContract {
         let mut escrow = storage::get_escrow(&env, escrow_id);
 
         if !matches!(escrow.status, EscrowStatus::Active) {
-            panic!("escrow is not active");
+            panic_with_error!(&env, EscrowError::NotActive);
         }
         if caller != escrow.depositor && caller != escrow.recipient {
-            panic!("only the depositor or recipient can raise a dispute");
+            panic_with_error!(&env, EscrowError::Unauthorized);
         }
 
         escrow.status = EscrowStatus::Disputed;
@@ -406,7 +406,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "too early")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_non_depositor_cannot_release_before_timelock() {
         let env = Env::default();
         let s = setup(&env);
@@ -462,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "only the recipient")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_depositor_cannot_refund_active_escrow() {
         let env = Env::default();
         let s = setup(&env);
@@ -522,7 +522,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "only the arbiter")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_non_arbiter_cannot_release_disputed_escrow() {
         let env = Env::default();
         let s = setup(&env);
@@ -540,7 +540,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "only the depositor or recipient")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_stranger_cannot_raise_dispute() {
         let env = Env::default();
         let s = setup(&env);
@@ -557,7 +557,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "escrow is not active")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_cannot_release_twice() {
         let env = Env::default();
         let s = setup(&env);
@@ -575,7 +575,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "escrow not found")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_get_unknown_escrow_panics() {
         let env = Env::default();
         let s = setup(&env);
@@ -583,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "arbiter must be a third party")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_arbiter_cannot_be_the_depositor() {
         // An arbiter who is also the depositor defeats the whole escrow: the
         // depositor disputes their own escrow, which removes the Active arm
@@ -602,7 +602,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "arbiter must be a third party")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_arbiter_cannot_be_the_recipient() {
         // The mirror image: the recipient disputes, then releases to
         // themselves as "arbiter", collecting before release_time.

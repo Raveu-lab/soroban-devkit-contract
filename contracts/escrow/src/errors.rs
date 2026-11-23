@@ -17,4 +17,8 @@ pub enum EscrowError {
     Unauthorized = 3,
     /// release() was called by a non-depositor before release_time
     TooEarly = 4,
+    /// deposit() was called with a zero or negative amount
+    InvalidAmount = 5,
+    /// deposit()'s arbiter is the same address as the depositor or recipient
+    InvalidArbiter = 6,
 }

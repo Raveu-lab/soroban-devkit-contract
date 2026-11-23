@@ -3,8 +3,9 @@
 //! All reads and writes to contract storage go through this module.
 //! Never call `env.storage()` directly in `lib.rs`.
 
+use crate::errors::EscrowError;
 use crate::types::Escrow;
-use soroban_sdk::{Env, Symbol};
+use soroban_sdk::{panic_with_error, Env, Symbol};
 
 /// How close to the network's max TTL a persistent entry is kept — same
 /// approach as oracle/access-control/dao-voting: self-adjusting to the
@@ -61,5 +62,5 @@ pub fn get_escrow(env: &Env, id: u32) -> Escrow {
     if escrow.is_some() {
         extend_escrow_ttl(env, id);
     }
-    escrow.unwrap_or_else(|| panic!("escrow not found"))
+    escrow.unwrap_or_else(|| panic_with_error!(env, EscrowError::EscrowNotFound))
 }
