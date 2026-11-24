@@ -12,7 +12,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, String};
 
 mod errors;
 mod events;
@@ -39,7 +39,7 @@ impl TokenContract {
         clawback_enabled: bool,
     ) {
         if storage::is_initialized(&env) {
-            panic!("already initialized");
+            panic_with_error!(&env, TokenError::AlreadyInitialized);
         }
         storage::set_admin(&env, &admin);
         storage::set_metadata(&env, name, symbol, decimals);
@@ -53,7 +53,7 @@ impl TokenContract {
         admin.require_auth();
 
         if amount <= 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, TokenError::InvalidAmount);
         }
 
         let balance = storage::get_balance(&env, &to);
@@ -68,12 +68,12 @@ impl TokenContract {
         from.require_auth();
 
         if amount <= 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, TokenError::InvalidAmount);
         }
 
         let from_balance = storage::get_balance(&env, &from);
         if from_balance < amount {
-            panic!("insufficient balance");
+            panic_with_error!(&env, TokenError::InsufficientBalance);
         }
 
         storage::set_balance(&env, &from, from_balance - amount);
@@ -92,10 +92,10 @@ impl TokenContract {
 
         // Zero is allowed: approve(0) is how SEP-41 revokes an allowance.
         if amount < 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, TokenError::InvalidAmount);
         }
         if amount > 0 && expiry_ledger < env.ledger().sequence() {
-            panic!("expiration ledger is in the past");
+            panic_with_error!(&env, TokenError::ExpirationInPast);
         }
 
         storage::set_allowance(&env, &from, &spender, amount, expiry_ledger);
@@ -110,17 +110,17 @@ impl TokenContract {
         spender.require_auth();
 
         if amount <= 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, TokenError::InvalidAmount);
         }
 
         let allowance = storage::get_allowance(&env, &from, &spender);
         if allowance < amount {
-            panic!("insufficient allowance");
+            panic_with_error!(&env, TokenError::InsufficientAllowance);
         }
 
         let from_balance = storage::get_balance(&env, &from);
         if from_balance < amount {
-            panic!("insufficient balance");
+            panic_with_error!(&env, TokenError::InsufficientBalance);
         }
 
         storage::set_allowance_amount(&env, &from, &spender, allowance - amount);
@@ -138,12 +138,12 @@ impl TokenContract {
         from.require_auth();
 
         if amount <= 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, TokenError::InvalidAmount);
         }
 
         let balance = storage::get_balance(&env, &from);
         if balance < amount {
-            panic!("insufficient balance");
+            panic_with_error!(&env, TokenError::InsufficientBalance);
         }
 
         storage::set_balance(&env, &from, balance - amount);
@@ -159,17 +159,17 @@ impl TokenContract {
         spender.require_auth();
 
         if amount <= 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, TokenError::InvalidAmount);
         }
 
         let allowance = storage::get_allowance(&env, &from, &spender);
         if allowance < amount {
-            panic!("insufficient allowance");
+            panic_with_error!(&env, TokenError::InsufficientAllowance);
         }
 
         let from_balance = storage::get_balance(&env, &from);
         if from_balance < amount {
-            panic!("insufficient balance");
+            panic_with_error!(&env, TokenError::InsufficientBalance);
         }
 
         storage::set_allowance_amount(&env, &from, &spender, allowance - amount);
@@ -187,16 +187,16 @@ impl TokenContract {
         admin.require_auth();
 
         if !storage::get_clawback_enabled(&env) {
-            panic!("clawback not enabled");
+            panic_with_error!(&env, TokenError::ClawbackNotEnabled);
         }
 
         if amount <= 0 {
-            panic!("amount must be positive");
+            panic_with_error!(&env, TokenError::InvalidAmount);
         }
 
         let balance = storage::get_balance(&env, &from);
         if balance < amount {
-            panic!("insufficient balance");
+            panic_with_error!(&env, TokenError::InsufficientBalance);
         }
 
         storage::set_balance(&env, &from, balance - amount);
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "insufficient allowance")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_transfer_from_fails_after_the_allowance_expires() {
         let env = Env::default();
         let (client, alice, spender) = allowance_setup(&env);
@@ -298,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expiration ledger is in the past")]
+    #[should_panic(expected = "Error(Contract, #7)")]
     fn test_approve_rejects_an_expiration_ledger_in_the_past() {
         let env = Env::default();
         let (client, alice, spender) = allowance_setup(&env);
@@ -610,7 +610,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "insufficient allowance")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_transfer_from_fails_over_allowance() {
         let env = Env::default();
         env.mock_all_auths();
@@ -636,7 +636,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "insufficient balance")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_transfer_from_fails_over_balance() {
         let env = Env::default();
         env.mock_all_auths();
@@ -704,7 +704,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "already initialized")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_double_initialize_panics() {
         let env = Env::default();
         env.mock_all_auths();
@@ -752,7 +752,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "insufficient balance")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_burn_fails_over_balance() {
         let env = Env::default();
         env.mock_all_auths();
@@ -797,7 +797,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "clawback not enabled")]
+    #[should_panic(expected = "Error(Contract, #5)")]
     fn test_clawback_fails_when_not_enabled() {
         let env = Env::default();
         env.mock_all_auths();
@@ -819,7 +819,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "amount must be positive")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_transfer_rejects_negative_amount() {
         let env = Env::default();
         env.mock_all_auths();
@@ -846,7 +846,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "amount must be positive")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_transfer_from_rejects_negative_amount() {
         let env = Env::default();
         env.mock_all_auths();
@@ -871,7 +871,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "amount must be positive")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_mint_rejects_negative_amount() {
         let env = Env::default();
         env.mock_all_auths();
@@ -895,7 +895,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "amount must be positive")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_burn_rejects_negative_amount() {
         let env = Env::default();
         env.mock_all_auths();
@@ -919,7 +919,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "amount must be positive")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_clawback_rejects_negative_amount() {
         let env = Env::default();
         env.mock_all_auths();
@@ -941,7 +941,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "amount must be positive")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_approve_rejects_negative_amount() {
         let env = Env::default();
         env.mock_all_auths();
@@ -963,7 +963,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "insufficient balance")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_clawback_fails_over_balance() {
         let env = Env::default();
         env.mock_all_auths();
@@ -1001,7 +1001,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "insufficient allowance")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_burn_from_rejects_an_amount_above_the_allowance() {
         let env = Env::default();
         let (client, alice, spender) = allowance_setup(&env);
@@ -1011,7 +1011,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "insufficient balance")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_burn_from_rejects_an_amount_above_the_balance() {
         let env = Env::default();
         let (client, alice, spender) = allowance_setup(&env);
@@ -1021,7 +1021,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "amount must be positive")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_burn_from_rejects_a_non_positive_amount() {
         // Same reasoning as every other balance-moving function here: a
         // negative amount would flip the arithmetic and credit the holder.

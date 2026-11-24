@@ -19,4 +19,8 @@ pub enum TokenError {
     AlreadyInitialized = 4,
     /// clawback was called but the clawback_enabled flag is false
     ClawbackNotEnabled = 5,
+    /// A balance-moving or approve call was made with a non-positive amount
+    InvalidAmount = 6,
+    /// approve()'s expiry_ledger is already in the past
+    ExpirationInPast = 7,
 }
